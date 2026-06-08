@@ -5,7 +5,7 @@ import '../../core/extensions.dart';
 import '../../models/commit_model.dart';
 import '../../services/work_hours_storage.dart';
 import 'commit_card.dart';
-import '../work_hours/work_hours_dialog.dart';
+import 'day_commits_dialog.dart';
 
 class CalendarDayCell extends ConsumerStatefulWidget {
   final DateTime date;
@@ -41,7 +41,7 @@ class _CalendarDayCellState extends ConsumerState<CalendarDayCell> {
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
-        onTap: widget.isCurrentMonth ? () => _showWorkHoursDialog() : null,
+        onTap: widget.isCurrentMonth ? () => _showDayCommitsDialog() : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           decoration: BoxDecoration(
@@ -144,13 +144,13 @@ class _CalendarDayCellState extends ConsumerState<CalendarDayCell> {
     return AppColors.background;
   }
 
-  void _showWorkHoursDialog() {
+  void _showDayCommitsDialog() {
     showDialog(
       context: context,
-      builder: (_) => WorkHoursDialog(
+      builder: (_) => DayCommitsDialog(
         date: widget.date,
-        currentCheckIn: widget.workHours?.checkIn,
-        currentCheckOut: widget.workHours?.checkOut,
+        commits: widget.commits,
+        repoColorMap: widget.repoColorMap,
       ),
     );
   }

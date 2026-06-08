@@ -192,46 +192,70 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          InkWell(
+          HoverScaleButton(
             onTap: _pickFolder,
-            borderRadius: BorderRadius.circular(10),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.surfaceBorder),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    folder != null ? Icons.folder_open : Icons.folder_outlined,
-                    color: folder != null
-                        ? AppColors.accentOrange
-                        : AppColors.textTertiary,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      folder ?? 'Pilih folder...',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: folder != null
-                            ? AppColors.textPrimary
-                            : AppColors.textTertiary,
-                      ),
-                      overflow: TextOverflow.ellipsis,
+            builder: (context, isHovered, isPressed) {
+              final borderColor = isHovered
+                  ? (folder != null
+                      ? AppColors.accentOrange.withValues(alpha: 0.6)
+                      : AppColors.accentBlue.withValues(alpha: 0.6))
+                  : AppColors.surfaceBorder;
+              final bgColor = isPressed
+                  ? AppColors.surfaceLight.withValues(alpha: 0.7)
+                  : isHovered
+                      ? AppColors.surfaceLight.withValues(alpha: 0.9)
+                      : AppColors.surfaceLight;
+
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: borderColor),
+                  boxShadow: isHovered
+                      ? [
+                          BoxShadow(
+                            color: (folder != null
+                                    ? AppColors.accentOrange
+                                    : AppColors.accentBlue)
+                                .withValues(alpha: 0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          )
+                        ]
+                      : null,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      folder != null ? Icons.folder_open : Icons.folder_outlined,
+                      color: folder != null
+                          ? AppColors.accentOrange
+                          : AppColors.textTertiary,
+                      size: 18,
                     ),
-                  ),
-                  const Icon(
-                    Icons.chevron_right,
-                    size: 16,
-                    color: AppColors.textTertiary,
-                  ),
-                ],
-              ),
-            ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        folder ?? 'Pilih folder...',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: folder != null
+                              ? AppColors.textPrimary
+                              : AppColors.textTertiary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const Icon(
+                      Icons.chevron_right,
+                      size: 16,
+                      color: AppColors.textTertiary,
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -478,7 +502,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
-class _NavTab extends StatelessWidget {
+class _NavTab extends StatefulWidget {
   final IconData icon;
   final String label;
   final bool isSelected;
@@ -492,41 +516,147 @@ class _NavTab extends StatelessWidget {
   });
 
   @override
+  State<_NavTab> createState() => _NavTabState();
+}
+
+class _NavTabState extends State<_NavTab> {
+  bool _isHovered = false;
+  bool _isPressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.accentBlue.withValues(alpha: 0.15)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: isSelected
-              ? Border.all(color: AppColors.accentBlue.withValues(alpha: 0.3))
-              : null,
+    double scale = 1.0;
+    if (_isPressed) {
+      scale = 0.95;
+    } else if (_isHovered) {
+      scale = 1.03;
+    }
+
+    final isSelected = widget.isSelected;
+
+    // Hover background color
+    final bgColor = isSelected
+        ? AppColors.accentBlue.withValues(alpha: 0.2)
+        : _isHovered
+            ? AppColors.surfaceLight.withValues(alpha: 0.6)
+            : Colors.transparent;
+
+    // Hover border color
+    final border = isSelected
+        ? Border.all(color: AppColors.accentBlue.withValues(alpha: 0.5))
+        : _isHovered
+            ? Border.all(color: AppColors.surfaceBorder)
+            : Border.all(color: Colors.transparent);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTapDown: (_) => setState(() => _isPressed = true),
+        onTapUp: (_) => setState(() => _isPressed = false),
+        onTapCancel: () => setState(() => _isPressed = false),
+        onTap: widget.onTap,
+        child: AnimatedScale(
+          scale: scale,
+          duration: const Duration(milliseconds: 100),
+          curve: Curves.easeOut,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(8),
+              border: border,
+              boxShadow: _isHovered && isSelected
+                  ? [
+                      BoxShadow(
+                        color: AppColors.accentBlue.withValues(alpha: 0.1),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      )
+                    ]
+                  : null,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  widget.icon,
+                  size: 16,
+                  color: isSelected
+                      ? AppColors.accentBlue
+                      : _isHovered
+                          ? AppColors.textPrimary
+                          : AppColors.textSecondary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  widget.label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    color: isSelected
+                        ? AppColors.accentBlue
+                        : _isHovered
+                            ? AppColors.textPrimary
+                            : AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 16,
-              color: isSelected ? AppColors.accentBlue : AppColors.textTertiary,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                color:
-                    isSelected ? AppColors.accentBlue : AppColors.textSecondary,
-              ),
-            ),
-          ],
+      ),
+    );
+  }
+}
+
+class HoverScaleButton extends StatefulWidget {
+  final Widget Function(BuildContext context, bool isHovered, bool isPressed) builder;
+  final VoidCallback onTap;
+  final double scaleOnHover;
+  final double scaleOnPress;
+
+  const HoverScaleButton({
+    super.key,
+    required this.builder,
+    required this.onTap,
+    this.scaleOnHover = 1.02,
+    this.scaleOnPress = 0.96,
+  });
+
+  @override
+  State<HoverScaleButton> createState() => _HoverScaleButtonState();
+}
+
+class _HoverScaleButtonState extends State<HoverScaleButton> {
+  bool _isHovered = false;
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    double scale = 1.0;
+    if (_isPressed) {
+      scale = widget.scaleOnPress;
+    } else if (_isHovered) {
+      scale = widget.scaleOnHover;
+    }
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTapDown: (_) => setState(() => _isPressed = true),
+        onTapUp: (_) => setState(() => _isPressed = false),
+        onTapCancel: () => setState(() => _isPressed = false),
+        onTap: widget.onTap,
+        child: AnimatedScale(
+          scale: scale,
+          duration: const Duration(milliseconds: 100),
+          curve: Curves.easeOut,
+          child: widget.builder(context, _isHovered, _isPressed),
         ),
       ),
     );
