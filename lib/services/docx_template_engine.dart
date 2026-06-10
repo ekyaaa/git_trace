@@ -7,13 +7,11 @@ import '../models/report_row_model.dart';
 class DocxTemplateEngine {
   static const _nsW = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 
-  /// Generates a .docx from a template by replacing {{variable}} placeholders.
   static Future<Uint8List> generate({
     required Uint8List templateBytes,
     required Map<String, String> variables,
     required List<ReportRowModel> tableRows,
   }) async {
-    // 1. Unzip the .docx
     final archive = ZipDecoder().decodeBytes(templateBytes);
     final newArchive = Archive();
 
@@ -33,19 +31,14 @@ class DocxTemplateEngine {
       throw Exception('word/document.xml not found in template');
     }
 
-    // 2. Handle table rows FIRST (before general variable replacement)
-    //    to prevent table placeholders from being wiped by _replaceAllVariables.
     _replaceTableRows(documentXml, tableRows);
-
-    // 3. Replace all {{variable}} placeholders in the entire document
     _replaceAllVariables(documentXml, variables);
 
-    // 4. Add modified document.xml back
-    final newDocXml = documentXml.toXmlString(pretty: false);
-    final newDocBytes = Uint8List.fromList(utf8.encode(newDocXml));
+    final finalXml = documentXml.toXmlString(pretty: false);
+
+    final newDocBytes = Uint8List.fromList(utf8.encode(finalXml));
     newArchive.addFile(ArchiveFile('word/document.xml', newDocBytes.length, newDocBytes));
 
-    // 5. Repack
     final encoded = ZipEncoder().encode(newArchive);
     if (encoded == null) {
       throw Exception('Failed to encode docx archive');
@@ -53,29 +46,83 @@ class DocxTemplateEngine {
     return Uint8List.fromList(encoded);
   }
 
-  /// Replaces all {{variable}} placeholders in all text nodes recursively.
-  static void _replaceAllVariables(XmlNode node, Map<String, String> variables) {
-    // Recurse into all children (XmlDocument, XmlElement, etc.)
-    for (final child in node.children.toList()) {
-      _replaceAllVariables(child, variables);
+  static void _replaceAllVariables(XmlDocument doc, Map<String, String> variables) {
+    if (variables.isEmpty) return;
+    final allTElements = doc.findAllElements('t', namespace: _nsW).toList();
+    for (final tElement in allTElements) {
+      _replaceInTextNode(tElement, variables);
+    }
+  }
+
+  static void _replaceInTextNode(XmlElement tElement, Map<String, String> variables) {
+    final value = tElement.innerText;
+    if (value.isEmpty) return;
+
+    var text = value;
+    for (final entry in variables.entries) {
+      final placeholder = '{{${entry.key}}}';
+      if (text.contains(placeholder)) {
+        text = text.replaceAll(placeholder, entry.value);
+      }
+    }
+    if (text != value) {
+      tElement.innerText = text;
+      return;
     }
 
-    if (node is XmlElement && node.name.local == 't') {
-      final value = node.innerText;
-      if (value.contains('{{')) {
-        var text = value;
-        for (final entry in variables.entries) {
-          final placeholder = '{{${entry.key}}}';
-          if (text.contains(placeholder)) {
-            text = text.replaceAll(placeholder, entry.value);
-          }
-        }
-        // Remove empty placeholder text if not replaced
-        if (text.contains('{{') && text.contains('}}')) {
-          text = text.replaceAll(RegExp(r'\{\{[^}]+\}\}'), '');
-        }
-        node.innerText = text;
+    if (text.contains('{{') && !text.contains('}}')) {
+      _replaceSplitPlaceholder(tElement, variables);
+    }
+  }
+
+  static void _replaceSplitPlaceholder(XmlElement startElement, Map<String, String> variables) {
+    XmlElement? blockAncestor;
+    var current = startElement;
+    while (current.parent != null) {
+      current = current.parent as XmlElement;
+      final tag = current.name.local;
+      if (tag == 'p' || tag == 'tc') {
+        blockAncestor = current;
+        break;
       }
+    }
+
+    if (blockAncestor == null) return;
+
+    final tElementsInBlock = blockAncestor.descendants
+        .whereType<XmlElement>()
+        .where((e) => e.name.local == 't')
+        .toList();
+
+    if (tElementsInBlock.length <= 1) return;
+
+    final startIndex = tElementsInBlock.indexOf(startElement);
+    if (startIndex < 0) return;
+
+    var concatenated = '';
+    final elementsUsed = <XmlElement>[];
+
+    for (int i = startIndex; i < tElementsInBlock.length; i++) {
+      concatenated += tElementsInBlock[i].innerText;
+      elementsUsed.add(tElementsInBlock[i]);
+      if (concatenated.contains('}}')) break;
+    }
+
+    var replaced = concatenated;
+    var didReplace = false;
+    for (final entry in variables.entries) {
+      final placeholder = '{{${entry.key}}}';
+      if (replaced.contains(placeholder)) {
+        replaced = replaced.replaceAll(placeholder, entry.value);
+        didReplace = true;
+      }
+    }
+
+    if (!didReplace) return;
+
+    elementsUsed.first.innerText = replaced;
+    for (int i = 1; i < elementsUsed.length; i++) {
+      elementsUsed[i].innerText = '';
     }
   }
 
@@ -83,87 +130,87 @@ class DocxTemplateEngine {
     final allTables = doc.findAllElements('tbl', namespace: _nsW).toList();
     if (allTables.length < 2) return;
 
-    // The second table is the activity table
     final activityTable = allTables[1];
     final allRows = activityTable.findAllElements('tr', namespace: _nsW).toList();
     if (allRows.length < 2) return;
 
-    // Find the template row (first data row with placeholders)
-    XmlElement? templateRow;
+    final templateRows = <XmlElement>[];
     for (int i = 1; i < allRows.length; i++) {
       final rowText = _getRowText(allRows[i]);
-      if (rowText.contains('{{hari_tanggal}}') ||
-          rowText.contains('{{jam_masuk}}') ||
-          rowText.contains('{{jam_pulang}}') ||
-          rowText.contains('{{kegiatan}}')) {
-        templateRow = allRows[i];
-        break;
+      if (rowText.contains('{{')) {
+        templateRows.add(allRows[i]);
       }
     }
 
-    if (templateRow == null) return;
+    if (templateRows.isEmpty) return;
 
-    // Remove the template row from its parent
-    templateRow.parent!.children.remove(templateRow);
+    final cloneSource = templateRows.first;
 
-    // Create new rows for each data entry
-    for (final rowData in tableRows) {
-      final newRow = _cloneRow(templateRow);
-      _replaceInRow(newRow, {
-        '{{hari_tanggal}}': rowData.dayDate,
-        '{{jam_masuk}}': rowData.checkIn,
-        '{{jam_pulang}}': rowData.checkOut,
-        '{{kegiatan}}': rowData.kegiatan,
-      });
-      activityTable.children.add(newRow);
+    for (final row in templateRows) {
+      row.parent!.children.remove(row);
     }
 
-    // Remove remaining empty placeholder rows
     final remainingRows = activityTable.findAllElements('tr', namespace: _nsW).toList();
-    for (final row in remainingRows) {
-      if (_isPlaceholderRow(row)) {
-        row.parent!.children.remove(row);
+    for (int i = 1; i < remainingRows.length; i++) {
+      if (_getRowText(remainingRows[i]).trim().isEmpty) {
+        remainingRows[i].parent!.children.remove(remainingRows[i]);
       }
+    }
+
+    for (final rowData in tableRows) {
+      final newRow = _cloneRow(cloneSource);
+      _replaceInClonedRow(newRow, rowData);
+      activityTable.children.add(newRow);
     }
   }
 
-  static bool _isPlaceholderRow(XmlElement tr) {
-    final rowText = _getRowText(tr);
-    return rowText.trim().isEmpty ||
-        rowText.contains('{{hari_tanggal}}') ||
-        rowText.contains('{{jam_masuk}}') ||
-        rowText.contains('{{jam_pulang}}') ||
-        rowText.contains('{{kegiatan}}');
+  static void _replaceInClonedRow(XmlElement row, ReportRowModel rowData) {
+    final replacements = {
+      'hari_tanggal': rowData.dayDate,
+      'jam_masuk': rowData.checkIn,
+      'jam_pulang': rowData.checkOut,
+      'kegiatan': rowData.kegiatan,
+    };
+
+    final allTElements = row.descendants
+        .whereType<XmlElement>()
+        .where((e) => e.name.local == 't')
+        .toList();
+
+    for (final tElement in allTElements) {
+      final value = tElement.innerText;
+      if (value.isEmpty) continue;
+
+      // Try direct replacement with full {{key}} placeholder
+      var text = value;
+      for (final entry in replacements.entries) {
+        final placeholder = '{{${entry.key}}}';
+        if (text.contains(placeholder)) {
+          text = text.replaceAll(placeholder, entry.value);
+        }
+      }
+      if (text != value) {
+        tElement.innerText = text;
+        continue;
+      }
+
+      // Handle split placeholder: text starts with {{ but no }}
+      if (text.contains('{{') && !text.contains('}}')) {
+        _replaceSplitPlaceholder(tElement, replacements);
+      }
+    }
   }
 
   static String _getRowText(XmlElement tr) {
-    // Use descendants + local name check because cloned rows may lose
-    // their namespace URI when detached from the document.
-    final texts = tr.descendants
+    return tr.descendants
         .whereType<XmlElement>()
-        .where((e) => e.name.local == 't');
-    return texts.map((t) => t.innerText).join('');
+        .where((e) => e.name.local == 't')
+        .map((t) => t.innerText)
+        .join('');
   }
 
   static XmlElement _cloneRow(XmlElement original) {
     final xmlString = original.toXmlString();
     return XmlDocument.parse(xmlString).rootElement.copy();
-  }
-
-  static void _replaceInRow(XmlElement row, Map<String, String> replacements) {
-    // Use descendants + local name check because cloned rows may lose
-    // their namespace URI when detached from the document.
-    final allTextElements = row.descendants
-        .whereType<XmlElement>()
-        .where((e) => e.name.local == 't');
-    for (final tElement in allTextElements) {
-      var text = tElement.innerText;
-      for (final entry in replacements.entries) {
-        if (text.contains(entry.key)) {
-          text = text.replaceAll(entry.key, entry.value);
-        }
-      }
-      tElement.innerText = text;
-    }
   }
 }
