@@ -327,60 +327,65 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
           ),
         ),
 
-        // Scrollable content area (Word options + Preview table)
+        // Content area (Word options + Preview table)
         Expanded(
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                // Word export options
-                if (_exportFormat == 'word')
-                  Column(
-                    children: [
-                      const ReportVariableForm(),
-                      FadeIn(
-                        delay: const Duration(milliseconds: 250),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppConstants.spacingXXLarge,
-                            vertical: AppConstants.spacingSmall,
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: _pickCustomTemplate,
-                                  icon: const Icon(Icons.folder_open, size: 16),
-                                  label: const Text('Pilih Template Custom'),
-                                  style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(vertical: 10),
-                                    side: BorderSide(
-                                      color: AppColors.surfaceBorder.withValues(alpha: 0.5),
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+          child: Column(
+            children: [
+              // Word export options (with constrained height + scrollable)
+              if (_exportFormat == 'word')
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 480),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        const ReportVariableForm(),
+                        FadeIn(
+                          delay: const Duration(milliseconds: 250),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppConstants.spacingXXLarge,
+                              vertical: AppConstants.spacingSmall,
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: _pickCustomTemplate,
+                                    icon: const Icon(Icons.folder_open, size: 16),
+                                    label: const Text('Pilih Template Custom'),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 10),
+                                      side: BorderSide(
+                                        color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              if (ref.watch(reportVariablesProvider).customTemplatePath != null) ...[
-                                const SizedBox(width: 8),
-                                IconButton(
-                                  onPressed: () {
-                                    ref.read(reportVariablesProvider.notifier).clearCustomTemplate();
-                                  },
-                                  icon: const Icon(Icons.clear, size: 16),
-                                  tooltip: 'Hapus template custom',
-                                  color: AppColors.accentRed,
-                                ),
+                                if (ref.watch(reportVariablesProvider).customTemplatePath != null) ...[
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    onPressed: () {
+                                      ref.read(reportVariablesProvider.notifier).clearCustomTemplate();
+                                    },
+                                    icon: const Icon(Icons.clear, size: 16),
+                                    tooltip: 'Hapus template custom',
+                                    color: AppColors.accentRed,
+                                  ),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                // Preview table
-                _loading
+                ),
+              // Preview table (fills remaining space)
+              Expanded(
+                child: _loading
                     ? const Center(
                         child: Padding(
                           padding: EdgeInsets.all(32.0),
@@ -432,8 +437,8 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                             ),
                           )
                         : ReportPreviewTable(rows: _previewRows),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
 

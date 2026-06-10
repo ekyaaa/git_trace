@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:xml/xml.dart';
@@ -21,7 +22,7 @@ class DocxTemplateEngine {
     for (int i = 0; i < archive.files.length; i++) {
       final file = archive.files[i];
       if (file.name == 'word/document.xml') {
-        final xmlString = String.fromCharCodes(file.content as List<int>);
+        final xmlString = utf8.decode(file.content as List<int>);
         documentXml = XmlDocument.parse(xmlString);
       } else {
         newArchive.addFile(file);
@@ -32,17 +33,16 @@ class DocxTemplateEngine {
       throw Exception('word/document.xml not found in template');
     }
 
-    // 2. Replace all {{variable}} in the entire document
-    _replaceAllVariables(documentXml, variables);
+    // 2. Handle table rows FIRST (before general variable replacement)
+    //    to prevent table placeholders from being wiped by _replaceAllVariables.
+    _replaceTableRows(documentXml, tableRows);
 
-    // 3. Handle table rows with table data
-    if (tableRows.isNotEmpty) {
-      _replaceTableRows(documentXml, tableRows);
-    }
+    // 3. Replace all {{variable}} placeholders in the entire document
+    _replaceAllVariables(documentXml, variables);
 
     // 4. Add modified document.xml back
     final newDocXml = documentXml.toXmlString(pretty: false);
-    final newDocBytes = Uint8List.fromList(newDocXml.codeUnits);
+    final newDocBytes = Uint8List.fromList(utf8.encode(newDocXml));
     newArchive.addFile(ArchiveFile('word/document.xml', newDocBytes.length, newDocBytes));
 
     // 5. Repack
@@ -55,14 +55,14 @@ class DocxTemplateEngine {
 
   /// Replaces all {{variable}} placeholders in all text nodes recursively.
   static void _replaceAllVariables(XmlNode node, Map<String, String> variables) {
-    if (node is XmlElement) {
-      for (final child in node.children.toList()) {
-        _replaceAllVariables(child, variables);
-      }
+    // Recurse into all children (XmlDocument, XmlElement, etc.)
+    for (final child in node.children.toList()) {
+      _replaceAllVariables(child, variables);
     }
-    if (node is XmlElement && node.name.local == 't' && node.name.namespaceUri == _nsW) {
-      final value = node.value;
-      if (value != null && value.contains('{{')) {
+
+    if (node is XmlElement && node.name.local == 't') {
+      final value = node.innerText;
+      if (value.contains('{{')) {
         var text = value;
         for (final entry in variables.entries) {
           final placeholder = '{{${entry.key}}}';
@@ -137,7 +137,11 @@ class DocxTemplateEngine {
   }
 
   static String _getRowText(XmlElement tr) {
-    final texts = tr.findAllElements('t', namespace: _nsW);
+    // Use descendants + local name check because cloned rows may lose
+    // their namespace URI when detached from the document.
+    final texts = tr.descendants
+        .whereType<XmlElement>()
+        .where((e) => e.name.local == 't');
     return texts.map((t) => t.innerText).join('');
   }
 
@@ -147,7 +151,11 @@ class DocxTemplateEngine {
   }
 
   static void _replaceInRow(XmlElement row, Map<String, String> replacements) {
-    final allTextElements = row.findAllElements('t', namespace: _nsW);
+    // Use descendants + local name check because cloned rows may lose
+    // their namespace URI when detached from the document.
+    final allTextElements = row.descendants
+        .whereType<XmlElement>()
+        .where((e) => e.name.local == 't');
     for (final tElement in allTextElements) {
       var text = tElement.innerText;
       for (final entry in replacements.entries) {
