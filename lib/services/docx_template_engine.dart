@@ -48,15 +48,78 @@ class DocxTemplateEngine {
 
   static void _replaceAllVariables(XmlDocument doc, Map<String, String> variables) {
     if (variables.isEmpty) return;
+
+    bool anyReplaced = false;
     final allTElements = doc.findAllElements('t', namespace: _nsW).toList();
     for (final tElement in allTElements) {
-      _replaceInTextNode(tElement, variables);
+      if (_replaceInTextNode(tElement, variables)) {
+        anyReplaced = true;
+      }
+    }
+
+    if (!anyReplaced) {
+      _replaceAllVariablesByLabel(doc, variables);
     }
   }
 
-  static void _replaceInTextNode(XmlElement tElement, Map<String, String> variables) {
+  static void _replaceAllVariablesByLabel(XmlDocument doc, Map<String, String> variables) {
+    final allTables = doc.findAllElements('tbl', namespace: _nsW).toList();
+    if (allTables.isEmpty) return;
+
+    final headerTable = allTables.first;
+    final rows = headerTable.findAllElements('tr', namespace: _nsW).toList();
+
+    final labelMap = <String, String>{
+      'nama': 'nama',
+      'nim': 'nim',
+      'program studi': 'prodi',
+      'nama mitra industri': 'mitra',
+      'dosen pembimbing': 'pembimbing',
+      'pembimbing lapangan': 'pembimbing_lapangan',
+    };
+
+    for (final row in rows) {
+      final cells = row.findAllElements('tc', namespace: _nsW).toList();
+      if (cells.length < 2) continue;
+
+      final labelCell = cells[0];
+      final labelTElements = labelCell.descendants
+          .whereType<XmlElement>()
+          .where((e) => e.name.local == 't')
+          .toList();
+      if (labelTElements.isEmpty) continue;
+
+      final labelText = labelTElements.map((e) => e.innerText).join('').toLowerCase().trim();
+
+      String? varKey;
+      for (final entry in labelMap.entries) {
+        if (labelText.contains(entry.key)) {
+          varKey = entry.value;
+          break;
+        }
+      }
+
+      if (varKey == null || !variables.containsKey(varKey)) continue;
+      if (variables[varKey]!.isEmpty) continue;
+
+      final valueCell = cells[1];
+      final valueTElements = valueCell.descendants
+          .whereType<XmlElement>()
+          .where((e) => e.name.local == 't')
+          .toList();
+
+      if (valueTElements.isNotEmpty) {
+        valueTElements.first.innerText = variables[varKey]!;
+        for (int i = 1; i < valueTElements.length; i++) {
+          valueTElements[i].innerText = '';
+        }
+      }
+    }
+  }
+
+  static bool _replaceInTextNode(XmlElement tElement, Map<String, String> variables) {
     final value = tElement.innerText;
-    if (value.isEmpty) return;
+    if (value.isEmpty) return false;
 
     var text = value;
     for (final entry in variables.entries) {
@@ -67,12 +130,15 @@ class DocxTemplateEngine {
     }
     if (text != value) {
       tElement.innerText = text;
-      return;
+      return true;
     }
 
     if (text.contains('{{') && !text.contains('}}')) {
       _replaceSplitPlaceholder(tElement, variables);
+      return true;
     }
+
+    return false;
   }
 
   static void _replaceSplitPlaceholder(XmlElement startElement, Map<String, String> variables) {
@@ -142,12 +208,27 @@ class DocxTemplateEngine {
       }
     }
 
-    if (templateRows.isEmpty) return;
+    XmlElement? cloneSource;
 
-    final cloneSource = templateRows.first;
-
-    for (final row in templateRows) {
-      row.parent!.children.remove(row);
+    if (templateRows.isNotEmpty) {
+      cloneSource = templateRows.first;
+      for (final row in templateRows) {
+        row.parent!.children.remove(row);
+      }
+    } else {
+      XmlElement? emptyRow;
+      for (int i = 1; i < allRows.length; i++) {
+        if (_getRowText(allRows[i]).trim().isEmpty) {
+          emptyRow = allRows[i];
+          break;
+        }
+      }
+      if (emptyRow != null) {
+        cloneSource = emptyRow;
+        emptyRow.parent!.children.remove(emptyRow);
+      } else {
+        cloneSource = _createRowFromHeader(allRows.first);
+      }
     }
 
     final remainingRows = activityTable.findAllElements('tr', namespace: _nsW).toList();
@@ -162,6 +243,16 @@ class DocxTemplateEngine {
       _replaceInClonedRow(newRow, rowData);
       activityTable.children.add(newRow);
     }
+  }
+
+  static XmlElement _createRowFromHeader(XmlElement headerRow) {
+    final headerCells = headerRow.findAllElements('tc', namespace: _nsW).toList();
+    final rowXml = StringBuffer('<w:tr xmlns:w="$_nsW">');
+    for (final _ in headerCells) {
+      rowXml.write('<w:tc><w:p><w:r><w:t xml:space="preserve"> </w:t></w:r></w:p></w:tc>');
+    }
+    rowXml.write('</w:tr>');
+    return XmlDocument.parse(rowXml.toString()).rootElement;
   }
 
   static void _replaceInClonedRow(XmlElement row, ReportRowModel rowData) {
