@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
+import '../../core/theme.dart';
 import '../../models/report_row_model.dart';
 
 class ReportPreviewTable extends StatelessWidget {
@@ -10,7 +11,7 @@ class ReportPreviewTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppConstants.spacingLarge),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -18,9 +19,13 @@ class ReportPreviewTable extends StatelessWidget {
           Container(
             decoration: BoxDecoration(
               color: AppColors.surfaceLight,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(10)),
-              border: Border.all(color: AppColors.surfaceBorder),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(AppConstants.radiusMedium),
+              ),
+              border: Border.all(
+                color: AppColors.surfaceBorder.withValues(alpha: 0.6),
+              ),
+              boxShadow: AppTheme.subtleShadow,
             ),
             child: const Row(children: [
               _HeaderCell(text: 'Hari, Tanggal', flex: 3),
@@ -34,31 +39,46 @@ class ReportPreviewTable extends StatelessWidget {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                border: Border.all(color: AppColors.surfaceBorder),
+                border: Border.all(
+                  color: AppColors.surfaceBorder.withValues(alpha: 0.6),
+                ),
                 borderRadius: const BorderRadius.vertical(
-                    bottom: Radius.circular(10)),
+                  bottom: Radius.circular(AppConstants.radiusMedium),
+                ),
               ),
-              child: ListView.separated(
-                itemCount: rows.length,
-                separatorBuilder: (_, _) =>
-                    const Divider(height: 1, color: AppColors.surfaceBorder),
-                itemBuilder: (context, index) {
-                  final row = rows[index];
-                  return Container(
-                    color: index.isEven
-                        ? Colors.transparent
-                        : AppColors.surfaceLight.withValues(alpha: 0.3),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _DataCell(text: row.dayDate, flex: 3),
-                        _DataCell(text: row.checkIn, flex: 1, center: true),
-                        _DataCell(text: row.checkOut, flex: 1, center: true),
-                        _DataCell(text: row.kegiatan, flex: 5),
-                      ],
-                    ),
-                  );
-                },
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(AppConstants.radiusMedium),
+                ),
+                child: ListView.builder(
+                  itemCount: rows.length,
+                  itemBuilder: (context, index) {
+                    final row = rows[index];
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: index.isEven
+                            ? Colors.transparent
+                            : AppColors.surfaceLight.withValues(alpha: 0.3),
+                        border: index < rows.length - 1
+                            ? Border(
+                                bottom: BorderSide(
+                                  color: AppColors.surfaceBorder.withValues(alpha: 0.3),
+                                ),
+                              )
+                            : null,
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _DataCell(text: row.dayDate, flex: 3),
+                          _DataCell(text: row.checkIn, flex: 1, center: true),
+                          _DataCell(text: row.checkOut, flex: 1, center: true),
+                          _DataCell(text: row.kegiatan, flex: 5),
+                        ],
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
           ),
@@ -79,13 +99,14 @@ class _HeaderCell extends StatelessWidget {
     return Expanded(
       flex: flex,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Text(
           text,
           style: const TextStyle(
             fontSize: 12,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
             color: AppColors.textPrimary,
+            letterSpacing: 0.2,
           ),
         ),
       ),
@@ -109,12 +130,14 @@ class _DataCell extends StatelessWidget {
     return Expanded(
       flex: flex,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         child: Text(
           text,
           style: const TextStyle(
             fontSize: 12,
             color: AppColors.textSecondary,
+            height: 1.5,
+            letterSpacing: 0.1,
           ),
           textAlign: center ? TextAlign.center : TextAlign.start,
         ),

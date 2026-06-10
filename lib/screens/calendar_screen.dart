@@ -8,6 +8,8 @@ import '../providers/work_hours_provider.dart';
 import '../widgets/calendar/month_calendar.dart';
 import '../widgets/calendar/month_navigator.dart';
 import '../widgets/work_hours/bulk_hour_dialog.dart';
+import '../widgets/animations/fade_in.dart';
+import '../widgets/animations/scale_on_hover.dart';
 
 class CalendarScreen extends ConsumerStatefulWidget {
   const CalendarScreen({super.key});
@@ -46,45 +48,57 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   Widget _buildTopBar(CalendarState calState, int totalCommits, int activeDays,
       int repoCount, Map workHours) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
-      decoration: const BoxDecoration(
+      padding: const EdgeInsets.fromLTRB(AppConstants.spacingXXLarge, AppConstants.spacingLarge, AppConstants.spacingXXLarge, AppConstants.spacingMedium),
+      decoration: BoxDecoration(
         color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.surfaceBorder)),
+        border: Border(
+          bottom: BorderSide(
+            color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+          ),
+        ),
       ),
       child: Column(children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            MonthNavigator(
-              month: calState.month,
-              year: calState.year,
-              onPrevious: () {
-                ref.read(calendarStateProvider.notifier).previousMonth();
-                _reloadData();
-              },
-              onNext: () {
-                ref.read(calendarStateProvider.notifier).nextMonth();
-                _reloadData();
-              },
+            FadeIn(
+              child: MonthNavigator(
+                month: calState.month,
+                year: calState.year,
+                onPrevious: () {
+                  ref.read(calendarStateProvider.notifier).previousMonth();
+                  _reloadData();
+                },
+                onNext: () {
+                  ref.read(calendarStateProvider.notifier).nextMonth();
+                  _reloadData();
+                },
+              ),
             ),
             Row(children: [
-              _chip(Icons.schedule, 'Atur Jam Kerja', _showBulkHoursDialog),
+              FadeIn(
+                delay: const Duration(milliseconds: 50),
+                child: _chip(Icons.schedule, 'Atur Jam Kerja', _showBulkHoursDialog),
+              ),
               const SizedBox(width: 8),
-              _chip(Icons.refresh, 'Refresh', () {
-                ref.read(commitsProvider.notifier).loadCommits();
-              }),
+              FadeIn(
+                delay: const Duration(milliseconds: 100),
+                child: _chip(Icons.refresh, 'Refresh', () {
+                  ref.read(commitsProvider.notifier).loadCommits();
+                }),
+              ),
             ]),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         Row(children: [
           _stat(Icons.commit, '$totalCommits', 'Commit', AppColors.accentBlue),
-          const SizedBox(width: 16),
+          const SizedBox(width: 20),
           _stat(Icons.calendar_today, '$activeDays', 'Hari Aktif',
               AppColors.accentGreen),
-          const SizedBox(width: 16),
+          const SizedBox(width: 20),
           _stat(Icons.source, '$repoCount', 'Repo', AppColors.accentPurple),
-          const SizedBox(width: 16),
+          const SizedBox(width: 20),
           _stat(Icons.access_time, '${workHours.length}', 'Jam Diisi',
               AppColors.accentOrange),
         ]),
@@ -93,48 +107,68 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   }
 
   Widget _chip(IconData icon, String label, VoidCallback onTap) {
-    return InkWell(
+    return ScaleOnHover(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: AppColors.surfaceBorder.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.surfaceBorder),
+          color: AppColors.surfaceBorder.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+          border: Border.all(
+            color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+          ),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(icon, size: 14, color: AppColors.textSecondary),
           const SizedBox(width: 6),
           Text(label,
-              style:
-                  const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.1,
+              )),
         ]),
       ),
     );
   }
 
   Widget _stat(IconData icon, String value, String label, Color color) {
-    return Row(mainAxisSize: MainAxisSize.min, children: [
-      Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(6),
+    return FadeIn(
+      delay: const Duration(milliseconds: 60),
+      slideOffset: const Offset(0, 8),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(AppConstants.radiusSmall - 2),
+            border: Border.all(
+              color: color.withValues(alpha: 0.2),
+              width: 0.5,
+            ),
+          ),
+          child: Icon(icon, size: 14, color: color),
         ),
-        child: Icon(icon, size: 13, color: color),
-      ),
-      const SizedBox(width: 6),
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(value,
-            style: const TextStyle(
-                fontSize: 14,
+        const SizedBox(width: 8),
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(value,
+              style: TextStyle(
+                fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary)),
-        Text(label,
-            style: const TextStyle(fontSize: 9, color: AppColors.textTertiary)),
+                color: AppColors.textPrimary,
+                letterSpacing: -0.2,
+              )),
+          Text(label,
+              style: TextStyle(
+                fontSize: 10,
+                color: AppColors.textTertiary,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.2,
+              )),
+        ]),
       ]),
-    ]);
+    );
   }
 
   Widget _buildCalendar(AsyncValue<List<CommitModel>> commits,

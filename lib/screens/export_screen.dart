@@ -6,8 +6,12 @@ import '../core/constants.dart';
 import '../models/report_row_model.dart';
 import '../providers/commits_provider.dart';
 import '../providers/calendar_provider.dart';
+import '../providers/report_variables_provider.dart';
 import '../services/excel_exporter.dart';
+import '../services/docx_exporter.dart';
 import '../widgets/export/report_preview_table.dart';
+import '../widgets/export/report_variable_form.dart';
+import '../widgets/animations/fade_in.dart';
 
 class ExportScreen extends ConsumerStatefulWidget {
   const ExportScreen({super.key});
@@ -22,6 +26,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
   bool _loading = true;
   bool _exporting = false;
   String? _lastExportPath;
+  String _exportFormat = 'excel'; // 'excel' or 'word'
 
   @override
   void initState() {
@@ -92,6 +97,86 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     }
   }
 
+  Future<void> _exportWord() async {
+    final commits = ref.read(commitsProvider).valueOrNull ?? [];
+    final variables = ref.read(reportVariablesProvider);
+
+    if (!variables.isFilled) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Isi data Nama, NIM, Prodi, dan Mitra di bagian Data Laporan terlebih dahulu.'),
+            backgroundColor: AppColors.accentOrange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      return;
+    }
+
+    String? outputPath = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: 'Pilih Folder Simpan',
+    );
+
+    if (outputPath == null) {
+      final dir = await getDownloadsDirectory();
+      outputPath = dir?.path;
+      if (outputPath == null) return;
+    }
+
+    setState(() => _exporting = true);
+    final calState = ref.read(calendarStateProvider);
+
+    final filePath = await DocxExporter.exportReport(
+      commits: commits,
+      month: calState.month,
+      year: calState.year,
+      outputPath: outputPath,
+      variables: variables,
+      customTemplatePath: variables.customTemplatePath,
+    );
+
+    setState(() {
+      _exporting = false;
+      _lastExportPath = filePath;
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(filePath != null
+              ? 'Berhasil! File disimpan di:\n$filePath'
+              : 'Gagal membuat file Word.'),
+          backgroundColor:
+              filePath != null ? AppColors.accentGreen : AppColors.accentRed,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
+  Future<void> _pickCustomTemplate() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['docx'],
+      dialogTitle: 'Pilih Template Word (.docx)',
+    );
+
+    if (result != null && result.files.single.path != null) {
+      final path = result.files.single.path!;
+      ref.read(reportVariablesProvider.notifier).setCustomTemplatePath(path);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Template custom dipilih: ${result.files.single.name}'),
+            backgroundColor: AppColors.accentGreen,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final calState = ref.watch(calendarStateProvider);
@@ -99,121 +184,338 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     return Column(
       children: [
         // Header
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: const BoxDecoration(
-            color: AppColors.surface,
-            border: Border(bottom: BorderSide(color: AppColors.surfaceBorder)),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Export Laporan',
-                      style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary)),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Bulan ${calState.month}/${calState.year} • ${_previewRows.length} hari kerja',
-                    style: const TextStyle(
-                        fontSize: 13, color: AppColors.textSecondary),
-                  ),
-                ],
-              ),
-              Row(children: [
-                if (_missingDates.isNotEmpty)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppColors.accentOrange.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                          color: AppColors.accentOrange.withValues(alpha: 0.3)),
-                    ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      const Icon(Icons.warning_amber,
-                          size: 14, color: AppColors.accentOrange),
-                      const SizedBox(width: 6),
-                      Text('${_missingDates.length} hari belum diisi jam',
-                          style: const TextStyle(
-                              fontSize: 11, color: AppColors.accentOrange)),
-                    ]),
-                  ),
-                const SizedBox(width: 12),
-                ElevatedButton.icon(
-                  onPressed: _exporting || _previewRows.isEmpty ? null : _export,
-                  icon: _exporting
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.file_download, size: 16),
-                  label: Text(_exporting ? 'Exporting...' : 'Export Excel'),
+        FadeIn(
+          child: Container(
+            padding: const EdgeInsets.all(AppConstants.spacingXXLarge),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              border: Border(
+                bottom: BorderSide(
+                  color: AppColors.surfaceBorder.withValues(alpha: 0.5),
                 ),
-              ]),
-            ],
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.accentBlue.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+                            border: Border.all(
+                              color: AppColors.accentBlue.withValues(alpha: 0.2),
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.file_download_outlined,
+                            color: AppColors.accentBlue,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Export Laporan',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Bulan ${calState.month}/${calState.year} • ${_previewRows.length} hari kerja',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                        letterSpacing: 0.1,
+                      ),
+                    ),
+                  ],
+                ),
+                Row(children: [
+                  if (_missingDates.isNotEmpty)
+                    FadeIn(
+                      delay: const Duration(milliseconds: 100),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.accentOrange.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                          border: Border.all(
+                            color: AppColors.accentOrange.withValues(alpha: 0.25),
+                          ),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(Icons.warning_amber,
+                              size: 14, color: AppColors.accentOrange.withValues(alpha: 0.9)),
+                          const SizedBox(width: 6),
+                          Text('${_missingDates.length} hari belum diisi jam',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.accentOrange.withValues(alpha: 0.9),
+                                  fontWeight: FontWeight.w600)),
+                        ]),
+                      ),
+                    ),
+                  const SizedBox(width: 12),
+                  FadeIn(
+                    delay: const Duration(milliseconds: 150),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.background,
+                        borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                        border: Border.all(
+                          color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildFormatButton('excel', 'Excel', Icons.table_chart),
+                          _buildFormatButton('word', 'Word', Icons.description),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  FadeIn(
+                    delay: const Duration(milliseconds: 200),
+                    child: ElevatedButton.icon(
+                      onPressed: _exporting || _previewRows.isEmpty
+                          ? null
+                          : (_exportFormat == 'excel' ? _export : _exportWord),
+                      icon: _exporting
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
+                          : Icon(
+                              _exportFormat == 'excel'
+                                  ? Icons.file_download
+                                  : Icons.file_download,
+                              size: 18),
+                      label: Text(_exporting
+                          ? 'Exporting...'
+                          : (_exportFormat == 'excel'
+                              ? 'Export Excel'
+                              : 'Export Word')),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 14,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                        ),
+                      ),
+                    ),
+                  ),
+                ]),
+              ],
+            ),
           ),
         ),
 
-        // Preview table
+        // Scrollable content area (Word options + Preview table)
         Expanded(
-          child: _loading
-              ? const Center(
-                  child: CircularProgressIndicator(
-                      color: AppColors.accentBlue, strokeWidth: 2))
-              : _previewRows.isEmpty
-                  ? Center(
-                      child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                        Icon(Icons.table_chart_outlined,
-                            size: 64,
-                            color: AppColors.textTertiary
-                                .withValues(alpha: 0.3)),
-                        const SizedBox(height: 16),
-                        const Text('Belum ada data untuk di-export',
-                            style: TextStyle(
-                                fontSize: 14,
-                                color: AppColors.textSecondary)),
-                        const SizedBox(height: 4),
-                        const Text('Muat commit terlebih dahulu dari tab Kalender',
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textTertiary)),
-                      ]))
-                  : ReportPreviewTable(rows: _previewRows),
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                // Word export options
+                if (_exportFormat == 'word')
+                  Column(
+                    children: [
+                      const ReportVariableForm(),
+                      FadeIn(
+                        delay: const Duration(milliseconds: 250),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppConstants.spacingXXLarge,
+                            vertical: AppConstants.spacingSmall,
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: _pickCustomTemplate,
+                                  icon: const Icon(Icons.folder_open, size: 16),
+                                  label: const Text('Pilih Template Custom'),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    side: BorderSide(
+                                      color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              if (ref.watch(reportVariablesProvider).customTemplatePath != null) ...[
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  onPressed: () {
+                                    ref.read(reportVariablesProvider.notifier).clearCustomTemplate();
+                                  },
+                                  icon: const Icon(Icons.clear, size: 16),
+                                  tooltip: 'Hapus template custom',
+                                  color: AppColors.accentRed,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                // Preview table
+                _loading
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(32.0),
+                          child: CircularProgressIndicator(
+                            color: AppColors.accentBlue,
+                            strokeWidth: 2,
+                          ),
+                        ),
+                      )
+                    : _previewRows.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(32.0),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  FadeIn(
+                                    child: Icon(
+                                      Icons.table_chart_outlined,
+                                      size: 64,
+                                      color: AppColors.textTertiary.withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  FadeIn(
+                                    delay: const Duration(milliseconds: 100),
+                                    child: const Text(
+                                      'Belum ada data untuk di-export',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: AppColors.textSecondary,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  FadeIn(
+                                    delay: const Duration(milliseconds: 150),
+                                    child: const Text(
+                                      'Muat commit terlebih dahulu dari tab Kalender',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textTertiary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : ReportPreviewTable(rows: _previewRows),
+              ],
+            ),
+          ),
         ),
 
         // Last export path
         if (_lastExportPath != null)
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: const BoxDecoration(
-              color: AppColors.surface,
-              border:
-                  Border(top: BorderSide(color: AppColors.surfaceBorder)),
-            ),
-            child: Row(children: [
-              const Icon(Icons.check_circle,
-                  size: 14, color: AppColors.accentGreen),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'File terakhir: $_lastExportPath',
-                  style: const TextStyle(
-                      fontSize: 11, color: AppColors.textTertiary),
-                  overflow: TextOverflow.ellipsis,
+          FadeIn(
+            slideOffset: const Offset(0, 10),
+            child: Container(
+              padding: const EdgeInsets.all(AppConstants.spacingMedium),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                border: Border(
+                  top: BorderSide(
+                    color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+                  ),
                 ),
               ),
-            ]),
+              child: Row(children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentGreen.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check_circle,
+                    size: 14,
+                    color: AppColors.accentGreen,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'File terakhir: $_lastExportPath',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textTertiary.withValues(alpha: 0.8),
+                      letterSpacing: 0.1,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ]),
+            ),
           ),
       ],
+    );
+  }
+
+  Widget _buildFormatButton(String format, String label, IconData icon) {
+    final isSelected = _exportFormat == format;
+    return InkWell(
+      onTap: () => setState(() => _exportFormat = format),
+      borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.accentBlue.withValues(alpha: 0.15)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected ? AppColors.accentBlue : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: isSelected ? AppColors.accentBlue : AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

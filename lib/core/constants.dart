@@ -54,6 +54,37 @@ class AppConstants {
   static const double minWindowHeight = 700.0;
   static const double defaultWindowWidth = 1400.0;
   static const double defaultWindowHeight = 850.0;
+
+  // Sidebar
+  static const double sidebarWidth = 320.0;
+
+  // Animation durations
+  static const Duration animDurationFast = Duration(milliseconds: 200);
+  static const Duration animDurationNormal = Duration(milliseconds: 300);
+  static const Duration animDurationSlow = Duration(milliseconds: 400);
+
+  // Border radius
+  static const double radiusSmall = 8.0;
+  static const double radiusMedium = 12.0;
+  static const double radiusLarge = 16.0;
+  static const double radiusXLarge = 20.0;
+
+  // Spacing
+  static const double spacingXSmall = 4.0;
+  static const double spacingSmall = 8.0;
+  static const double spacingMedium = 12.0;
+  static const double spacingLarge = 16.0;
+  static const double spacingXLarge = 20.0;
+  static const double spacingXXLarge = 24.0;
+}
+
+/// Easing curves for smooth animations
+class AppCurves {
+  AppCurves._();
+
+  static const Curve easeOutExpo = Cubic(0.16, 1, 0.3, 1);
+  static const Curve easeInOutCubic = Cubic(0.65, 0, 0.35, 1);
+  static const Curve easeOutBack = Cubic(0.34, 1.56, 0.64, 1);
 }
 
 class AppColors {

@@ -21,6 +21,10 @@ dependencies:
   # Excel export
   excel: ^4.0.2
 
+  # Docx manipulation (template engine)
+  archive: ^3.6.1
+  xml: ^6.6.1
+
   # Local storage (jam kerja & preferensi)
   shared_preferences: ^2.2.3
 
@@ -49,3 +53,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/app_icon.png
+    - assets/templates/default_logbook_template.docx

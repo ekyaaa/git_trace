@@ -17,92 +17,152 @@ class DayCommitsDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateStr =
-        DateFormat('EEEE, d MMMM yyyy', 'id_ID').format(date);
+    final dateStr = DateFormat('EEEE, d MMMM yyyy', 'id_ID').format(date);
     final hasCommits = commits.isNotEmpty;
 
     return AlertDialog(
+      backgroundColor: AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
+        side: BorderSide(
+          color: AppColors.surfaceBorder.withValues(alpha: 0.6),
+        ),
+      ),
       title: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(6),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: AppColors.accentBlue.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
+              color: AppColors.accentBlue.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+              border: Border.all(
+                color: AppColors.accentBlue.withValues(alpha: 0.2),
+                width: 1,
+              ),
             ),
             child: const Icon(Icons.commit_rounded,
-                color: AppColors.accentBlue, size: 18),
+                color: AppColors.accentBlue, size: 20),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Detail Aktivitas Hari Ini',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const Text('Detail Aktivitas',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.2,
+                    )),
+                const SizedBox(height: 2),
                 Text(
                   dateStr,
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.textSecondary,
                     fontWeight: FontWeight.w400,
+                    letterSpacing: 0.1,
                   ),
                 ),
               ],
             ),
           ),
+          IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.close, size: 18, color: AppColors.textTertiary),
+            splashRadius: 20,
+          ),
         ],
       ),
       content: SizedBox(
-        width: 450,
+        width: 480,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (!hasCommits)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 32),
                 child: Center(
-                  child: Text(
-                    'Tidak ada aktivitas commit di hari ini.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                    ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.inbox_outlined,
+                        size: 40,
+                        color: AppColors.textTertiary.withValues(alpha: 0.3),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Tidak ada aktivitas commit di hari ini.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               )
             else ...[
-              const Text(
-                'Aktivitas Commit',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
+              Row(
+                children: [
+                  const Text(
+                    'Aktivitas Commit',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.accentBlue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${commits.length}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.accentBlue,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 350),
+                constraints: const BoxConstraints(maxHeight: 380),
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: commits.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
                   itemBuilder: (context, index) {
                     final commit = commits[index];
-                    final colorIndex =
-                        repoColorMap[commit.repoName] ?? 0;
+                    final colorIndex = repoColorMap[commit.repoName] ?? 0;
                     final color = AppColors.getRepoColor(colorIndex);
 
                     return Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: AppColors.surfaceLight,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
                         border: Border.all(
-                          color: color.withValues(alpha: 0.3),
+                          color: color.withValues(alpha: 0.25),
                           width: 1,
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -111,38 +171,62 @@ class DayCommitsDialog extends StatelessWidget {
                             children: [
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
+                                    horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: color.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(4),
+                                  color: color.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
                                   commit.repoName,
                                   style: TextStyle(
-                                    fontSize: 9,
+                                    fontSize: 10,
                                     fontWeight: FontWeight.w700,
                                     color: color,
+                                    letterSpacing: 0.2,
                                   ),
                                 ),
                               ),
                               const Spacer(),
-                              Text(
-                                commit.timeString,
-                                style: const TextStyle(
-                                  fontSize: 9,
-                                  color: AppColors.textTertiary,
-                                ),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.access_time,
+                                    size: 10,
+                                    color: AppColors.textTertiary.withValues(alpha: 0.6),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    commit.timeString,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: AppColors.textTertiary.withValues(alpha: 0.6),
+                                      fontWeight: FontWeight.w500,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 10),
                           Text(
                             commit.subject,
                             softWrap: true,
                             style: const TextStyle(
-                              fontSize: 12,
-                              height: 1.4,
+                              fontSize: 13,
+                              height: 1.5,
                               color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 0.1,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            commit.authorName,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: AppColors.textTertiary.withValues(alpha: 0.5),
+                              letterSpacing: 0.2,
                             ),
                           ),
                         ],
@@ -155,17 +239,6 @@ class DayCommitsDialog extends StatelessWidget {
           ],
         ),
       ),
-      actions: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            OutlinedButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Tutup'),
-            ),
-          ],
-        ),
-      ],
     );
   }
 }

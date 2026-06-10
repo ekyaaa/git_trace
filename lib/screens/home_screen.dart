@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import '../core/constants.dart';
+import '../core/theme.dart';
+import '../core/transitions.dart';
 
 import '../providers/folder_provider.dart';
 import '../providers/repositories_provider.dart';
@@ -10,6 +12,8 @@ import '../providers/commits_provider.dart';
 import '../providers/calendar_provider.dart';
 import '../providers/work_hours_provider.dart';
 import '../widgets/repo_selector/repo_list_tile.dart';
+import '../widgets/animations/fade_in.dart';
+import '../widgets/animations/scale_on_hover.dart';
 import 'calendar_screen.dart';
 import 'export_screen.dart';
 
@@ -68,8 +72,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
           // Main content
           Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
+            child: SmoothSwitcher(
               child: selectedTab == 0
                   ? const CalendarScreen(key: ValueKey('calendar'))
                   : const ExportScreen(key: ValueKey('export')),
@@ -86,7 +89,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final selectedTab = ref.watch(selectedTabProvider);
 
     return Container(
-      width: 300,
+      width: AppConstants.sidebarWidth,
       color: AppColors.surface,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -123,12 +126,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _buildAppHeader() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: const BoxDecoration(
+      padding: const EdgeInsets.symmetric(horizontal: AppConstants.spacingXLarge, vertical: AppConstants.spacingLarge),
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Color(0xFF161B22),
-            Color(0xFF1A1F2B),
+            AppColors.surface,
+            AppColors.background.withValues(alpha: 0.8),
           ],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -136,40 +139,53 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       child: Row(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.asset(
-              'assets/images/app_icon.png',
-              width: 38,
-              height: 38,
-              fit: BoxFit.cover,
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+              boxShadow: AppTheme.subtleShadow,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+              child: Image.asset(
+                'assets/images/app_icon.png',
+                width: 40,
+                height: 40,
+                fit: BoxFit.cover,
+              ),
             ),
           ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ShaderMask(
-                shaderCallback: (bounds) =>
-                    AppColors.accentGradient.createShader(bounds),
-                child: const Text(
-                  AppConstants.appName,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ShaderMask(
+                  shaderCallback: (bounds) =>
+                      AppColors.accentGradient.createShader(bounds),
+                  child: const Text(
+                    AppConstants.appName,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      letterSpacing: -0.3,
+                    ),
                   ),
                 ),
-              ),
-              Text(
-                AppConstants.appTagline,
-                style: const TextStyle(
-                  fontSize: 10,
-                  color: AppColors.textTertiary,
-                  fontStyle: FontStyle.italic,
+                const SizedBox(height: 2),
+                Text(
+                  AppConstants.appTagline,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textTertiary,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: 0.3,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -178,84 +194,96 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _buildFolderSection(String? folder) {
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(AppConstants.spacingMedium),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'ROOT FOLDER',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textTertiary,
-              letterSpacing: 1.2,
+          FadeIn(
+            child: const Text(
+              'ROOT FOLDER',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textTertiary,
+                letterSpacing: 1.2,
+              ),
             ),
           ),
           const SizedBox(height: 8),
-          HoverScaleButton(
-            onTap: _pickFolder,
-            builder: (context, isHovered, isPressed) {
-              final borderColor = isHovered
-                  ? (folder != null
-                      ? AppColors.accentOrange.withValues(alpha: 0.6)
-                      : AppColors.accentBlue.withValues(alpha: 0.6))
-                  : AppColors.surfaceBorder;
-              final bgColor = isPressed
-                  ? AppColors.surfaceLight.withValues(alpha: 0.7)
-                  : isHovered
-                      ? AppColors.surfaceLight.withValues(alpha: 0.9)
-                      : AppColors.surfaceLight;
+          FadeIn(
+            delay: const Duration(milliseconds: 50),
+            child: ScaleOnHoverBuilder(
+              onTap: _pickFolder,
+              builder: (context, isHovered, isPressed) {
+                final borderColor = isHovered
+                    ? (folder != null
+                        ? AppColors.accentOrange.withValues(alpha: 0.6)
+                        : AppColors.accentBlue.withValues(alpha: 0.6))
+                    : AppColors.surfaceBorder;
+                final bgColor = isPressed
+                    ? AppColors.surfaceLight.withValues(alpha: 0.7)
+                    : isHovered
+                        ? AppColors.surfaceLight.withValues(alpha: 0.9)
+                        : AppColors.surfaceLight;
 
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: bgColor,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: borderColor),
-                  boxShadow: isHovered
-                      ? [
-                          BoxShadow(
-                            color: (folder != null
-                                    ? AppColors.accentOrange
-                                    : AppColors.accentBlue)
-                                .withValues(alpha: 0.1),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          )
-                        ]
-                      : null,
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      folder != null ? Icons.folder_open : Icons.folder_outlined,
-                      color: folder != null
-                          ? AppColors.accentOrange
-                          : AppColors.textTertiary,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        folder ?? 'Pilih folder...',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: folder != null
-                              ? AppColors.textPrimary
-                              : AppColors.textTertiary,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: bgColor,
+                    borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                    border: Border.all(color: borderColor),
+                    boxShadow: isHovered
+                        ? [
+                            BoxShadow(
+                              color: (folder != null
+                                      ? AppColors.accentOrange
+                                      : AppColors.accentBlue)
+                                  .withValues(alpha: 0.12),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                              spreadRadius: 0,
+                            ),
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.08),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : AppTheme.subtleShadow,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        folder != null ? Icons.folder_open : Icons.folder_outlined,
+                        color: folder != null
+                            ? AppColors.accentOrange
+                            : AppColors.textTertiary,
+                        size: 18,
                       ),
-                    ),
-                    const Icon(
-                      Icons.chevron_right,
-                      size: 16,
-                      color: AppColors.textTertiary,
-                    ),
-                  ],
-                ),
-              );
-            },
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          folder ?? 'Pilih folder...',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: folder != null ? FontWeight.w500 : FontWeight.w400,
+                            color: folder != null
+                                ? AppColors.textPrimary
+                                : AppColors.textTertiary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right,
+                        size: 16,
+                        color: AppColors.textTertiary,
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -264,7 +292,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _buildNavTabs(int selectedTab) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: AppConstants.spacingMedium, vertical: AppConstants.spacingSmall),
       child: Row(
         children: [
           Expanded(
@@ -388,7 +416,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           children: [
             // Header with select all
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+              padding: const EdgeInsets.fromLTRB(AppConstants.spacingMedium, 8, AppConstants.spacingMedium, 4),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -403,34 +431,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                   Row(
                     children: [
-                      InkWell(
+                      ScaleOnHover(
                         onTap: () {
                           ref.read(selectedReposProvider.notifier).selectAll(
                             repoList.map((r) => r.path as String).toList(),
                           );
                         },
-                        borderRadius: BorderRadius.circular(4),
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          child: Text(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.accentBlue.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+                          ),
+                          child: const Text(
                             'Semua',
                             style: TextStyle(
                               fontSize: 10,
                               color: AppColors.accentBlue,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
                       ),
                       const SizedBox(width: 4),
-                      InkWell(
+                      ScaleOnHover(
                         onTap: () {
                           ref.read(selectedReposProvider.notifier).deselectAll();
                         },
-                        borderRadius: BorderRadius.circular(4),
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          child: Text(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+                          ),
+                          child: const Text(
                             'Kosongkan',
                             style: TextStyle(
                               fontSize: 10,
@@ -449,19 +483,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             // Repo list
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: AppConstants.spacingSmall, vertical: 4),
                 itemCount: repoList.length,
                 itemBuilder: (context, index) {
                   final repo = repoList[index];
-                  return RepoListTile(
-                    repo: repo,
-                    isSelected: selectedRepos.contains(repo.path),
-                    colorIndex: index,
-                    onToggle: () {
-                      ref
-                          .read(selectedReposProvider.notifier)
-                          .toggle(repo.path);
-                    },
+                  return FadeIn(
+                    delay: Duration(milliseconds: 30 * index),
+                    slideOffset: const Offset(-12, 0),
+                    child: RepoListTile(
+                      repo: repo,
+                      isSelected: selectedRepos.contains(repo.path),
+                      colorIndex: index,
+                      onToggle: () {
+                        ref
+                            .read(selectedReposProvider.notifier)
+                            .toggle(repo.path);
+                      },
+                    ),
                   );
                 },
               ),
@@ -474,7 +512,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _buildActionBar(Set<String> selectedRepos) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(AppConstants.spacingMedium),
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.5),
+        border: Border(
+          top: BorderSide(
+            color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+          ),
+        ),
+      ),
       child: Column(
         children: [
           Text(
@@ -482,6 +528,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             style: const TextStyle(
               fontSize: 11,
               color: AppColors.textTertiary,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 0.2,
             ),
           ),
           const SizedBox(height: 8),
@@ -493,6 +541,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               label: const Text('Muat Commit'),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                ),
+                elevation: 0,
               ),
             ),
           ),
@@ -525,28 +577,13 @@ class _NavTabState extends State<_NavTab> {
 
   @override
   Widget build(BuildContext context) {
-    double scale = 1.0;
-    if (_isPressed) {
-      scale = 0.95;
-    } else if (_isHovered) {
-      scale = 1.03;
-    }
-
     final isSelected = widget.isSelected;
 
-    // Hover background color
     final bgColor = isSelected
-        ? AppColors.accentBlue.withValues(alpha: 0.2)
+        ? AppColors.accentBlue.withValues(alpha: 0.12)
         : _isHovered
-            ? AppColors.surfaceLight.withValues(alpha: 0.6)
+            ? AppColors.surfaceLight.withValues(alpha: 0.5)
             : Colors.transparent;
-
-    // Hover border color
-    final border = isSelected
-        ? Border.all(color: AppColors.accentBlue.withValues(alpha: 0.5))
-        : _isHovered
-            ? Border.all(color: AppColors.surfaceBorder)
-            : Border.all(color: Colors.transparent);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -558,51 +595,66 @@ class _NavTabState extends State<_NavTab> {
         onTapCancel: () => setState(() => _isPressed = false),
         onTap: widget.onTap,
         child: AnimatedScale(
-          scale: scale,
-          duration: const Duration(milliseconds: 100),
-          curve: Curves.easeOut,
+          scale: _isPressed ? 0.97 : 1.0,
+          duration: AppConstants.animDurationFast,
+          curve: AppCurves.easeOutExpo,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
+            duration: AppConstants.animDurationFast,
+            curve: AppCurves.easeOutExpo,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: bgColor,
-              borderRadius: BorderRadius.circular(8),
-              border: border,
-              boxShadow: _isHovered && isSelected
-                  ? [
-                      BoxShadow(
-                        color: AppColors.accentBlue.withValues(alpha: 0.1),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      )
-                    ]
+              borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+              border: isSelected
+                  ? Border.all(color: AppColors.accentBlue.withValues(alpha: 0.4))
+                  : _isHovered
+                      ? Border.all(color: AppColors.surfaceBorder)
+                      : Border.all(color: Colors.transparent),
+              boxShadow: isSelected && _isHovered
+                  ? AppTheme.glowShadowBlue
                   : null,
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  widget.icon,
-                  size: 16,
-                  color: isSelected
-                      ? AppColors.accentBlue
-                      : _isHovered
-                          ? AppColors.textPrimary
-                          : AppColors.textSecondary,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      widget.icon,
+                      size: 16,
+                      color: isSelected
+                          ? AppColors.accentBlue
+                          : _isHovered
+                              ? AppColors.textPrimary
+                              : AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      widget.label,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                        color: isSelected
+                            ? AppColors.accentBlue
+                            : _isHovered
+                                ? AppColors.textPrimary
+                                : AppColors.textSecondary,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  widget.label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                    color: isSelected
-                        ? AppColors.accentBlue
-                        : _isHovered
-                            ? AppColors.textPrimary
-                            : AppColors.textSecondary,
+                if (isSelected)
+                  Container(
+                    margin: const EdgeInsets.only(top: 4),
+                    height: 2,
+                    width: 24,
+                    decoration: BoxDecoration(
+                      color: AppColors.accentBlue,
+                      borderRadius: BorderRadius.circular(1),
+                    ),
                   ),
-                ),
               ],
             ),
           ),

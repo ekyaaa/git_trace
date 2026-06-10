@@ -43,8 +43,15 @@ class MonthCalendar extends StatelessWidget {
       children: [
         // Day headers
         Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          color: AppColors.surface,
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            border: Border(
+              bottom: BorderSide(
+                color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+              ),
+            ),
+          ),
           child: Row(
             children: AppConstants.dayHeaders.map((day) {
               final isWeekend = day == 'Sab' || day == 'Min';
@@ -54,10 +61,11 @@ class MonthCalendar extends StatelessWidget {
                     day,
                     style: TextStyle(
                       fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       color: isWeekend
                           ? AppColors.accentRed.withValues(alpha: 0.6)
                           : AppColors.textTertiary,
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ),
@@ -134,8 +142,10 @@ class MonthCalendar extends StatelessWidget {
 
     return GridView.count(
       crossAxisCount: 7,
-      childAspectRatio: 1.3,
-      padding: EdgeInsets.zero,
+      crossAxisSpacing: 2,
+      mainAxisSpacing: 2,
+      childAspectRatio: 1.35,
+      padding: const EdgeInsets.all(2),
       physics: const NeverScrollableScrollPhysics(),
       children: cells,
     );
@@ -143,38 +153,57 @@ class MonthCalendar extends StatelessWidget {
 
   Widget _buildLegend(Map<String, int> repoColorMap) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: const BoxDecoration(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
         color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.surfaceBorder)),
+        border: Border(
+          top: BorderSide(
+            color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+          ),
+        ),
       ),
-      child: Wrap(
-        spacing: 16,
-        runSpacing: 4,
-        children: repoColorMap.entries.map((entry) {
-          final color = AppColors.getRepoColor(entry.value);
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(3),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: repoColorMap.entries.map((entry) {
+            final color = AppColors.getRepoColor(entry.value);
+            return Container(
+              margin: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: color.withValues(alpha: 0.2),
+                  width: 1,
                 ),
               ),
-              const SizedBox(width: 4),
-              Text(
-                entry.key,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    entry.key,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
               ),
-            ],
-          );
-        }).toList(),
+            );
+          }).toList(),
+        ),
       ),
     );
   }
