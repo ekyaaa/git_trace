@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import '../models/commit_model.dart';
 import '../models/report_row_model.dart';
 import '../services/work_hours_storage.dart';
+import 'duplicate_commit_resolver.dart';
 
 class ExcelExporter {
   /// Exports monthly report to an Excel file.
@@ -14,6 +15,7 @@ class ExcelExporter {
     required int month,
     required int year,
     required String outputPath,
+    bool mergeDuplicates = true,
   }) async {
     try {
       // Initialize Indonesian locale
@@ -52,9 +54,9 @@ class ExcelExporter {
         final workHours = await WorkHoursStorage.getWorkHours(dateKey);
 
         // Format kegiatan
-        final kegiatan = dateCommits
-            .map((c) => '[${c.repoName}] ${c.subject}')
-            .join('\n');
+        final kegiatan = mergeDuplicates
+            ? DuplicateCommitResolver.buildMergedKegiatan(dateCommits)
+            : DuplicateCommitResolver.buildSeparateKegiatan(dateCommits);
 
         rows.add(ReportRowModel(
           dayDate: dateFormatter.format(date),
@@ -215,8 +217,9 @@ class ExcelExporter {
   static Future<List<ReportRowModel>> buildReportRows(
     List<CommitModel> commits,
     int month,
-    int year,
-  ) async {
+    int year, {
+    bool mergeDuplicates = true,
+  }) async {
     final dateFormatter = DateFormat('EEEE, d MMM yyyy', 'id_ID');
 
     final commitsByDate = <DateTime, List<CommitModel>>{};
@@ -247,9 +250,9 @@ class ExcelExporter {
           '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
       final workHours = await WorkHoursStorage.getWorkHours(dateKey);
 
-      final kegiatan = dateCommits
-          .map((c) => '[${c.repoName}] ${c.subject}')
-          .join('\n');
+      final kegiatan = mergeDuplicates
+          ? DuplicateCommitResolver.buildMergedKegiatan(dateCommits)
+          : DuplicateCommitResolver.buildSeparateKegiatan(dateCommits);
 
       rows.add(ReportRowModel(
         dayDate: dateFormatter.format(date),

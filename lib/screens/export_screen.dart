@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/constants.dart';
 import '../core/theme_colors.dart';
 import '../models/report_row_model.dart';
@@ -11,6 +12,7 @@ import '../providers/calendar_provider.dart';
 import '../providers/report_variables_provider.dart';
 import '../services/excel_exporter.dart';
 import '../services/docx_exporter.dart';
+import '../services/duplicate_commit_resolver.dart';
 import '../widgets/export/report_preview_table.dart';
 import '../widgets/export/report_variable_form.dart';
 import '../widgets/animations/fade_in.dart';
@@ -29,11 +31,29 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
   bool _exporting = false;
   String? _lastExportPath;
   String _exportFormat = 'excel'; // 'excel' or 'word'
+  bool _mergeDuplicates = true;
+  int _duplicateCount = 0;
 
   @override
   void initState() {
     super.initState();
-    Future.microtask(_loadPreview);
+    Future.microtask(() async {
+      await _loadMergePreference();
+      await _loadPreview();
+    });
+  }
+
+  Future<void> _loadMergePreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getBool(AppConstants.prefKeyMergeDuplicates);
+    if (stored != null) {
+      setState(() => _mergeDuplicates = stored);
+    }
+  }
+
+  Future<void> _saveMergePreference(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(AppConstants.prefKeyMergeDuplicates, value);
   }
 
   Future<void> _loadPreview() async {
@@ -44,8 +64,14 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
       commits,
       calState.month,
       calState.year,
+      mergeDuplicates: _mergeDuplicates,
     );
     final missing = await ExcelExporter.getMissingWorkHoursDates(
+      commits,
+      calState.month,
+      calState.year,
+    );
+    final dupCount = DuplicateCommitResolver.countExtraDuplicates(
       commits,
       calState.month,
       calState.year,
@@ -53,6 +79,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     setState(() {
       _previewRows = rows;
       _missingDates = missing;
+      _duplicateCount = dupCount;
       _loading = false;
     });
   }
@@ -79,6 +106,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
       month: calState.month,
       year: calState.year,
       outputPath: outputPath,
+      mergeDuplicates: _mergeDuplicates,
     );
 
     setState(() {
@@ -145,6 +173,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
       outputPath: outputPath,
       variables: variables,
       customTemplatePath: variables.customTemplatePath,
+      mergeDuplicates: _mergeDuplicates,
     );
 
     setState(() {
@@ -305,6 +334,35 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                         ]),
                       ),
                     ),
+                  if (_duplicateCount > 0) ...[
+                    const SizedBox(width: 8),
+                    FadeIn(
+                      delay: const Duration(milliseconds: 120),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: colors.accentPurple.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                          border: Border.all(
+                            color: colors.accentPurple.withValues(alpha: 0.25),
+                          ),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(Icons.content_copy,
+                              size: 14, color: colors.accentPurple.withValues(alpha: 0.9)),
+                          const SizedBox(width: 6),
+                          Text('$_duplicateCount commit duplikat',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: colors.accentPurple.withValues(alpha: 0.9),
+                                  fontWeight: FontWeight.w600)),
+                        ]),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(width: 12),
+                  _buildMergeToggle(colors),
                   const SizedBox(width: 12),
                   FadeIn(
                     delay: const Duration(milliseconds: 150),
@@ -559,6 +617,58 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMergeToggle(ThemeColors colors) {
+    return FadeIn(
+      delay: const Duration(milliseconds: 150),
+      child: GestureDetector(
+        onTap: () async {
+          final newValue = !_mergeDuplicates;
+          setState(() => _mergeDuplicates = newValue);
+          await _saveMergePreference(newValue);
+          await _loadPreview();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: _mergeDuplicates
+                ? colors.accentGreen.withValues(alpha: 0.1)
+                : colors.surfaceBorder.withValues(alpha: 0.2),
+            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+            border: Border.all(
+              color: _mergeDuplicates
+                  ? colors.accentGreen.withValues(alpha: 0.3)
+                  : colors.surfaceBorder.withValues(alpha: 0.5),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _mergeDuplicates ? Icons.merge_type : Icons.format_list_bulleted,
+                size: 14,
+                color: _mergeDuplicates
+                    ? colors.accentGreen
+                    : colors.textSecondary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                _mergeDuplicates ? 'Gabung' : 'Pisah',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: _mergeDuplicates
+                      ? colors.accentGreen
+                      : colors.textSecondary,
+                  letterSpacing: 0.1,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

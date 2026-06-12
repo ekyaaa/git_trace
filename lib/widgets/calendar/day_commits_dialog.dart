@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../../core/constants.dart';
 import '../../core/theme_colors.dart';
 import '../../models/commit_model.dart';
+import '../../services/duplicate_commit_resolver.dart';
 
 class DayCommitsDialog extends StatelessWidget {
   final DateTime date;
@@ -149,6 +150,7 @@ class DayCommitsDialog extends StatelessWidget {
                     final commit = commits[index];
                     final colorIndex = repoColorMap[commit.repoName] ?? 0;
                     final color = colors.getRepoColor(colorIndex);
+                    final isDup = DuplicateCommitResolver.isDuplicate(commit, commits);
 
                     return Container(
                       padding: const EdgeInsets.all(14),
@@ -189,6 +191,35 @@ class DayCommitsDialog extends StatelessWidget {
                                   ),
                                 ),
                               ),
+                              if (isDup) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: colors.accentPurple.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.content_copy,
+                                          size: 9,
+                                          color: colors.accentPurple.withValues(alpha: 0.8)),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        'Duplikat',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w600,
+                                          color: colors.accentPurple.withValues(alpha: 0.8),
+                                          letterSpacing: 0.2,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                               const Spacer(),
                               Row(
                                 children: [

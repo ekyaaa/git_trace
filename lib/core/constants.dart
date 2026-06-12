@@ -23,6 +23,7 @@ class AppConstants {
   static const String prefKeyRootFolder = 'root_folder';
   static const String prefKeySelectedRepos = 'selected_repos';
   static const String prefKeyThemeMode = 'theme_mode';
+  static const String prefKeyMergeDuplicates = 'merge_duplicates';
 
   // Git commands
   static const String gitExecutable = 'git';

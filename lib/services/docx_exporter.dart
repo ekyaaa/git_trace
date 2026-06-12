@@ -14,10 +14,16 @@ class DocxExporter {
     required String outputPath,
     required ReportVariableModel variables,
     String? customTemplatePath,
+    bool mergeDuplicates = true,
   }) async {
     try {
       // 1. Build report rows (same logic as Excel)
-      final rows = await ExcelExporter.buildReportRows(commits, month, year);
+      final rows = await ExcelExporter.buildReportRows(
+        commits,
+        month,
+        year,
+        mergeDuplicates: mergeDuplicates,
+      );
       if (rows.isEmpty) return null;
 
       // 2. Load template bytes
@@ -74,6 +80,7 @@ class DocxExporter {
     required String outputPath,
     required ReportVariableModel variables,
     required String templatePath,
+    bool mergeDuplicates = true,
   }) async {
     return exportReport(
       commits: commits,
@@ -82,6 +89,7 @@ class DocxExporter {
       outputPath: outputPath,
       variables: variables,
       customTemplatePath: templatePath,
+      mergeDuplicates: mergeDuplicates,
     );
   }
 }
