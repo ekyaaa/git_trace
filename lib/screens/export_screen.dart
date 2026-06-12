@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
@@ -93,7 +94,14 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
               : 'Gagal membuat file Excel.'),
           backgroundColor:
               filePath != null ? colors.accentGreen : colors.accentRed,
-          duration: const Duration(seconds: 4),
+          duration: const Duration(seconds: 6),
+          action: filePath != null
+              ? SnackBarAction(
+                  label: '📂 Buka Folder',
+                  textColor: Colors.white,
+                  onPressed: () => _openFileInManager(filePath),
+                )
+              : null,
         ),
       );
     }
@@ -152,7 +160,14 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
               : 'Gagal membuat file Word.'),
           backgroundColor:
               filePath != null ? colors.accentGreen : colors.accentRed,
-          duration: const Duration(seconds: 4),
+          duration: const Duration(seconds: 6),
+          action: filePath != null
+              ? SnackBarAction(
+                  label: '📂 Buka Folder',
+                  textColor: Colors.white,
+                  onPressed: () => _openFileInManager(filePath),
+                )
+              : null,
         ),
       );
     }
@@ -178,6 +193,24 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
           ),
         );
       }
+    }
+  }
+
+  Future<void> _openFileInManager(String filePath) async {
+    try {
+      final file = File(filePath);
+      if (!await file.exists()) return;
+
+      if (Platform.isWindows) {
+        await Process.run('explorer.exe', ['/select,"$filePath"']);
+      } else if (Platform.isMacOS) {
+        await Process.run('open', ['-R', filePath]);
+      } else if (Platform.isLinux) {
+        final dir = file.parent.path;
+        await Process.run('xdg-open', [dir]);
+      }
+    } catch (e) {
+      debugPrint('Gagal membuka file manager: $e');
     }
   }
 
