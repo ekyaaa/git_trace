@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants.dart';
+import '../../core/theme_colors.dart';
 import '../../core/extensions.dart';
 import '../../models/commit_model.dart';
 import '../../services/work_hours_storage.dart';
@@ -36,6 +37,7 @@ class _CalendarDayCellState extends ConsumerState<CalendarDayCell> {
     final isWeekend = widget.date.isWeekend;
     final hasCommits = widget.commits.isNotEmpty;
     final hasHours = widget.workHours != null;
+    final colors = ThemeColors.of(context);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
@@ -49,14 +51,14 @@ class _CalendarDayCellState extends ConsumerState<CalendarDayCell> {
           duration: AppConstants.animDurationFast,
           curve: AppCurves.easeOutExpo,
           decoration: BoxDecoration(
-            color: _getCellColor(isToday, _hovered, widget.isCurrentMonth),
+            color: _getCellColor(isToday, _hovered, widget.isCurrentMonth, colors),
             borderRadius: BorderRadius.circular(AppConstants.radiusSmall - 2),
             border: Border.all(
               color: isToday
-                  ? AppColors.accentBlue.withValues(alpha: 0.6)
+                  ? colors.accentBlue.withValues(alpha: 0.6)
                   : _hovered && widget.isCurrentMonth
-                      ? AppColors.surfaceBorder.withValues(alpha: 0.8)
-                      : AppColors.surfaceBorder.withValues(alpha: 0.2),
+                      ? colors.surfaceBorder.withValues(alpha: 0.8)
+                      : colors.surfaceBorder.withValues(alpha: 0.2),
               width: isToday ? 2 : 0.5,
             ),
             boxShadow: _hovered && widget.isCurrentMonth
@@ -85,7 +87,7 @@ class _CalendarDayCellState extends ConsumerState<CalendarDayCell> {
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: isToday
-                              ? AppColors.accentBlue
+                              ? colors.accentBlue
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(10),
                         ),
@@ -98,12 +100,12 @@ class _CalendarDayCellState extends ConsumerState<CalendarDayCell> {
                             color: isToday
                                 ? Colors.white
                                 : !widget.isCurrentMonth
-                                    ? AppColors.textTertiary
+                                    ? colors.textTertiary
                                         .withValues(alpha: 0.4)
                                     : isWeekend
-                                        ? AppColors.accentRed
+                                        ? colors.accentRed
                                             .withValues(alpha: 0.7)
-                                        : AppColors.textSecondary,
+                                        : colors.textSecondary,
                           ),
                         ),
                       ),
@@ -112,10 +114,10 @@ class _CalendarDayCellState extends ConsumerState<CalendarDayCell> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 5, vertical: 2),
                           decoration: BoxDecoration(
-                            color: AppColors.accentGreen.withValues(alpha: 0.12),
+                            color: colors.accentGreen.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: AppColors.accentGreen.withValues(alpha: 0.2),
+                              color: colors.accentGreen.withValues(alpha: 0.2),
                               width: 0.5,
                             ),
                           ),
@@ -123,7 +125,7 @@ class _CalendarDayCellState extends ConsumerState<CalendarDayCell> {
                             '${widget.workHours!.checkIn}-${widget.workHours!.checkOut}',
                             style: TextStyle(
                               fontSize: 7,
-                              color: AppColors.accentGreen,
+                              color: colors.accentGreen,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.3,
                             ),
@@ -141,7 +143,7 @@ class _CalendarDayCellState extends ConsumerState<CalendarDayCell> {
                       '${widget.commits.length} commits',
                       style: TextStyle(
                         fontSize: 8,
-                        color: AppColors.textTertiary.withValues(alpha: 0.5),
+                        color: colors.textTertiary.withValues(alpha: 0.5),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -159,7 +161,7 @@ class _CalendarDayCellState extends ConsumerState<CalendarDayCell> {
                             widget.repoColorMap[commit.repoName] ?? 0;
                         return CommitCard(
                           commit: commit,
-                          color: AppColors.getRepoColor(colorIndex),
+                          color: colors.getRepoColor(colorIndex),
                         );
                       },
                     ),
@@ -173,7 +175,7 @@ class _CalendarDayCellState extends ConsumerState<CalendarDayCell> {
                       '+${widget.commits.length - 4} more',
                       style: TextStyle(
                         fontSize: 8,
-                        color: AppColors.textTertiary.withValues(alpha: 0.4),
+                        color: colors.textTertiary.withValues(alpha: 0.4),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -186,14 +188,14 @@ class _CalendarDayCellState extends ConsumerState<CalendarDayCell> {
     );
   }
 
-  Color _getCellColor(bool isToday, bool hovered, bool isCurrentMonth) {
-    if (!isCurrentMonth) return AppColors.background.withValues(alpha: 0.3);
+  Color _getCellColor(bool isToday, bool hovered, bool isCurrentMonth, ThemeColors colors) {
+    if (!isCurrentMonth) return colors.background.withValues(alpha: 0.3);
     if (isToday && hovered) {
-      return AppColors.accentBlue.withValues(alpha: 0.1);
+      return colors.accentBlue.withValues(alpha: 0.1);
     }
-    if (hovered) return AppColors.surfaceLight.withValues(alpha: 0.8);
-    if (isToday) return AppColors.accentBlue.withValues(alpha: 0.06);
-    return AppColors.background;
+    if (hovered) return colors.surfaceLight.withValues(alpha: 0.8);
+    if (isToday) return colors.accentBlue.withValues(alpha: 0.06);
+    return colors.background;
   }
 
   void _showDayCommitsDialog() {

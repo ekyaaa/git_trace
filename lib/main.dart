@@ -4,6 +4,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:window_manager/window_manager.dart';
 import 'core/constants.dart';
 import 'core/theme.dart';
+import 'providers/theme_provider.dart';
 import 'screens/home_screen.dart';
 
 void main() async {
@@ -33,15 +34,19 @@ void main() async {
   runApp(const ProviderScope(child: GitTraceApp()));
 }
 
-class GitTraceApp extends StatelessWidget {
+class GitTraceApp extends ConsumerWidget {
   const GitTraceApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(flutterThemeModeProvider);
+
     return MaterialApp(
       title: AppConstants.appName,
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeMode,
       home: const HomeScreen(),
     );
   }

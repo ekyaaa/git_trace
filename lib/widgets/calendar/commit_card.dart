@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
+import '../../core/theme_colors.dart';
 import '../../models/commit_model.dart';
 
 class CommitCard extends StatefulWidget {
@@ -21,6 +22,8 @@ class _CommitCardState extends State<CommitCard> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = ThemeColors.of(context);
+
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
@@ -71,9 +74,9 @@ class _CommitCardState extends State<CommitCard> {
               Expanded(
                 child: Text(
                   widget.commit.subject,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 10,
-                    color: AppColors.textPrimary,
+                    color: colors.textPrimary,
                     fontWeight: FontWeight.w500,
                     letterSpacing: 0.1,
                     height: 1.2,

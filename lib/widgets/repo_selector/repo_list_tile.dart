@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import '../../core/constants.dart';
+import '../../core/theme_colors.dart';
 import '../../models/repository_model.dart';
 import '../../providers/folder_provider.dart';
 import 'package:intl/intl.dart';
@@ -29,7 +30,8 @@ class _RepoListTileState extends ConsumerState<RepoListTile> {
 
   @override
   Widget build(BuildContext context) {
-    final color = AppColors.getRepoColor(widget.colorIndex);
+    final colors = ThemeColors.of(context);
+    final color = colors.getRepoColor(widget.colorIndex);
     final folder = ref.watch(folderProvider);
     String displayPath = widget.repo.path;
     if (folder != null) {
@@ -55,13 +57,13 @@ class _RepoListTileState extends ConsumerState<RepoListTile> {
             color: widget.isSelected
                 ? color.withValues(alpha: 0.08)
                 : _hovered
-                    ? AppColors.surfaceLight.withValues(alpha: 0.6)
+                    ? colors.surfaceLight.withValues(alpha: 0.6)
                     : Colors.transparent,
             borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
             border: widget.isSelected
                 ? Border.all(color: color.withValues(alpha: 0.3))
                 : _hovered
-                    ? Border.all(color: AppColors.surfaceBorder.withValues(alpha: 0.6))
+                    ? Border.all(color: colors.surfaceBorder.withValues(alpha: 0.6))
                     : null,
             boxShadow: widget.isSelected
                 ? [
@@ -89,7 +91,7 @@ class _RepoListTileState extends ConsumerState<RepoListTile> {
                   border: Border.all(
                     color: widget.isSelected
                         ? color
-                        : AppColors.surfaceBorder,
+                        : colors.surfaceBorder,
                     width: 1.5,
                   ),
                 ),
@@ -135,8 +137,8 @@ class _RepoListTileState extends ConsumerState<RepoListTile> {
                         fontSize: 12,
                         fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w500,
                         color: widget.isSelected
-                            ? AppColors.textPrimary
-                            : AppColors.textSecondary,
+                            ? colors.textPrimary
+                            : colors.textSecondary,
                         letterSpacing: 0.1,
                       ),
                       overflow: TextOverflow.ellipsis,
@@ -149,7 +151,7 @@ class _RepoListTileState extends ConsumerState<RepoListTile> {
                           Icon(
                             Icons.folder_outlined,
                             size: 9,
-                            color: AppColors.textTertiary.withValues(alpha: 0.7),
+                            color: colors.textTertiary.withValues(alpha: 0.7),
                           ),
                           const SizedBox(width: 3),
                           Expanded(
@@ -157,7 +159,7 @@ class _RepoListTileState extends ConsumerState<RepoListTile> {
                               displayPath,
                               style: TextStyle(
                                 fontSize: 9,
-                                color: AppColors.textTertiary.withValues(alpha: 0.7),
+                                color: colors.textTertiary.withValues(alpha: 0.7),
                                 letterSpacing: 0.2,
                               ),
                               overflow: TextOverflow.ellipsis,
@@ -173,14 +175,14 @@ class _RepoListTileState extends ConsumerState<RepoListTile> {
                         Icon(
                           Icons.source_outlined,
                           size: 8,
-                          color: AppColors.textTertiary.withValues(alpha: 0.5),
+                          color: colors.textTertiary.withValues(alpha: 0.5),
                         ),
                         const SizedBox(width: 3),
                         Text(
                           '${widget.repo.totalCommits} commits',
                           style: TextStyle(
                             fontSize: 9,
-                            color: AppColors.textTertiary.withValues(alpha: 0.5),
+                            color: colors.textTertiary.withValues(alpha: 0.5),
                             letterSpacing: 0.2,
                           ),
                         ),
@@ -190,7 +192,7 @@ class _RepoListTileState extends ConsumerState<RepoListTile> {
                             '•',
                             style: TextStyle(
                               fontSize: 9,
-                              color: AppColors.textTertiary.withValues(alpha: 0.5),
+                              color: colors.textTertiary.withValues(alpha: 0.5),
                             ),
                           ),
                           const SizedBox(width: 4),
@@ -199,7 +201,7 @@ class _RepoListTileState extends ConsumerState<RepoListTile> {
                                 .format(widget.repo.lastCommitDate!),
                             style: TextStyle(
                               fontSize: 9,
-                              color: AppColors.textTertiary.withValues(alpha: 0.5),
+                              color: colors.textTertiary.withValues(alpha: 0.5),
                               letterSpacing: 0.2,
                             ),
                           ),

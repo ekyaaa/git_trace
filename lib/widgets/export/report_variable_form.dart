@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants.dart';
+import '../../core/theme_colors.dart';
 import '../../providers/report_variables_provider.dart';
 
 class ReportVariableForm extends ConsumerStatefulWidget {
@@ -52,6 +53,7 @@ class _ReportVariableFormState extends ConsumerState<ReportVariableForm> {
   }
 
   void _save() {
+    final colors = ThemeColors.of(context);
     ref.read(reportVariablesProvider.notifier).update(
       nama: _namaCtrl.text,
       nim: _nimCtrl.text,
@@ -65,26 +67,28 @@ class _ReportVariableFormState extends ConsumerState<ReportVariableForm> {
     );
     ref.read(reportVariablesProvider.notifier).save();
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Data instansi berhasil disimpan.'),
-        backgroundColor: AppColors.accentGreen,
-        duration: Duration(seconds: 2),
+      SnackBar(
+        content: const Text('Data instansi berhasil disimpan.'),
+        backgroundColor: colors.accentGreen,
+        duration: const Duration(seconds: 2),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final colors = ThemeColors.of(context);
+
     return Container(
       margin: const EdgeInsets.symmetric(
         horizontal: AppConstants.spacingXXLarge,
         vertical: AppConstants.spacingMedium,
       ),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
         border: Border.all(
-          color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+          color: colors.surfaceBorder.withValues(alpha: 0.5),
         ),
       ),
       child: Column(
@@ -99,17 +103,17 @@ class _ReportVariableFormState extends ConsumerState<ReportVariableForm> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppColors.accentBlue.withValues(alpha: 0.1),
+                      color: colors.accentBlue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.edit_document,
-                      color: AppColors.accentBlue,
+                      color: colors.accentBlue,
                       size: 18,
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -118,15 +122,15 @@ class _ReportVariableFormState extends ConsumerState<ReportVariableForm> {
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
+                            color: colors.textPrimary,
                           ),
                         ),
-                        SizedBox(height: 2),
+                        const SizedBox(height: 2),
                         Text(
                           'Isi nama, NIM, dan data instansi untuk template Word',
                           style: TextStyle(
                             fontSize: 11,
-                            color: AppColors.textSecondary,
+                            color: colors.textSecondary,
                           ),
                         ),
                       ],
@@ -134,7 +138,7 @@ class _ReportVariableFormState extends ConsumerState<ReportVariableForm> {
                   ),
                   Icon(
                     _expanded ? Icons.expand_less : Icons.expand_more,
-                    color: AppColors.textSecondary,
+                    color: colors.textSecondary,
                     size: 20,
                   ),
                 ],
@@ -151,7 +155,7 @@ class _ReportVariableFormState extends ConsumerState<ReportVariableForm> {
               ),
               child: Column(
                 children: [
-                  const Divider(height: 1, color: AppColors.surfaceBorder),
+                  Divider(height: 1, color: colors.surfaceBorder),
                   const SizedBox(height: 16),
                   _buildField('Nama Mahasiswa', _namaCtrl),
                   const SizedBox(height: 12),
@@ -165,14 +169,14 @@ class _ReportVariableFormState extends ConsumerState<ReportVariableForm> {
                   const SizedBox(height: 12),
                   _buildField('Pembimbing Lapangan', _pembimbingLapanganCtrl),
                   const SizedBox(height: 16),
-                  const Divider(height: 1, color: AppColors.surfaceBorder),
+                  Divider(height: 1, color: colors.surfaceBorder),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     'Nama untuk Tanda Tangan',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: colors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -205,36 +209,38 @@ class _ReportVariableFormState extends ConsumerState<ReportVariableForm> {
   }
 
   Widget _buildField(String label, TextEditingController controller) {
+    final colors = ThemeColors.of(context);
+
     return TextField(
       controller: controller,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 13,
-        color: AppColors.textPrimary,
+        color: colors.textPrimary,
       ),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(
+        labelStyle: TextStyle(
           fontSize: 12,
-          color: AppColors.textSecondary,
+          color: colors.textSecondary,
         ),
         filled: true,
-        fillColor: AppColors.background,
+        fillColor: colors.background,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
           borderSide: BorderSide(
-            color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+            color: colors.surfaceBorder.withValues(alpha: 0.5),
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
           borderSide: BorderSide(
-            color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+            color: colors.surfaceBorder.withValues(alpha: 0.5),
           ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
-          borderSide: const BorderSide(
-            color: AppColors.accentBlue,
+          borderSide: BorderSide(
+            color: colors.accentBlue,
           ),
         ),
         contentPadding: const EdgeInsets.symmetric(

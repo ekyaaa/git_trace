@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
-import '../../core/theme.dart';
+import '../../core/theme_colors.dart';
 import '../../models/report_row_model.dart';
 
 class ReportPreviewTable extends StatelessWidget {
@@ -10,6 +10,8 @@ class ReportPreviewTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = ThemeColors.of(context);
+
     return Padding(
       padding: const EdgeInsets.all(AppConstants.spacingLarge),
       child: Column(
@@ -18,16 +20,16 @@ class ReportPreviewTable extends StatelessWidget {
           // Table header
           Container(
             decoration: BoxDecoration(
-              color: AppColors.surfaceLight,
+              color: colors.surfaceLight,
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(AppConstants.radiusMedium),
               ),
               border: Border.all(
-                color: AppColors.surfaceBorder.withValues(alpha: 0.6),
+                color: colors.surfaceBorder.withValues(alpha: 0.6),
               ),
-              boxShadow: AppTheme.subtleShadow,
+              boxShadow: colors.subtleShadow,
             ),
-            child: const Row(children: [
+            child: Row(children: [
               _HeaderCell(text: 'Hari, Tanggal', flex: 3),
               _HeaderCell(text: 'Jam Masuk', flex: 1),
               _HeaderCell(text: 'Jam Pulang', flex: 1),
@@ -40,7 +42,7 @@ class ReportPreviewTable extends StatelessWidget {
             child: Container(
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: AppColors.surfaceBorder.withValues(alpha: 0.6),
+                  color: colors.surfaceBorder.withValues(alpha: 0.6),
                 ),
                 borderRadius: const BorderRadius.vertical(
                   bottom: Radius.circular(AppConstants.radiusMedium),
@@ -58,11 +60,11 @@ class ReportPreviewTable extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: index.isEven
                             ? Colors.transparent
-                            : AppColors.surfaceLight.withValues(alpha: 0.3),
+                            : colors.surfaceLight.withValues(alpha: 0.3),
                         border: index < rows.length - 1
                             ? Border(
                                 bottom: BorderSide(
-                                  color: AppColors.surfaceBorder.withValues(alpha: 0.3),
+                                  color: colors.surfaceBorder.withValues(alpha: 0.3),
                                 ),
                               )
                             : null,
@@ -96,16 +98,18 @@ class _HeaderCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = ThemeColors.of(context);
+
     return Expanded(
       flex: flex,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Text(
           text,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
+            color: colors.textPrimary,
             letterSpacing: 0.2,
           ),
         ),
@@ -127,15 +131,17 @@ class _DataCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = ThemeColors.of(context);
+
     return Expanded(
       flex: flex,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         child: Text(
           text,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
-            color: AppColors.textSecondary,
+            color: colors.textSecondary,
             height: 1.5,
             letterSpacing: 0.1,
           ),

@@ -31,6 +31,11 @@ class DocxTemplateEngine {
       throw Exception('word/document.xml not found in template');
     }
 
+    print('[DocxEngine] tableRows count: ${tableRows.length}');
+    if (tableRows.isNotEmpty) {
+      print('[DocxEngine] first row: dayDate="${tableRows.first.dayDate}", checkIn="${tableRows.first.checkIn}", checkOut="${tableRows.first.checkOut}", kegiatan="${tableRows.first.kegiatan}"');
+    }
+
     _replaceTableRows(documentXml, tableRows);
     _replaceAllVariables(documentXml, variables);
 
@@ -194,102 +199,132 @@ class DocxTemplateEngine {
 
   static void _replaceTableRows(XmlDocument doc, List<ReportRowModel> tableRows) {
     final allTables = doc.findAllElements('tbl', namespace: _nsW).toList();
-    if (allTables.length < 2) return;
+    print('[DocxEngine] Tables found: ${allTables.length}');
+    if (allTables.length < 2) {
+      print('[DocxEngine] WARNING: Less than 2 tables, skipping row replacement');
+      return;
+    }
 
     final activityTable = allTables[1];
     final allRows = activityTable.findAllElements('tr', namespace: _nsW).toList();
+    print('[DocxEngine] Activity table rows: ${allRows.length}');
     if (allRows.length < 2) return;
 
-    final templateRows = <XmlElement>[];
+    for (int i = 0; i < allRows.length; i++) {
+      final rowText = _getRowText(allRows[i]);
+      print('[DocxEngine]   Row $i: "${rowText.length > 80 ? rowText.substring(0, 80) : rowText}"');
+    }
+
+    XmlElement? templateRowElement;
+
     for (int i = 1; i < allRows.length; i++) {
       final rowText = _getRowText(allRows[i]);
       if (rowText.contains('{{')) {
-        templateRows.add(allRows[i]);
+        templateRowElement = allRows[i];
+        print('[DocxEngine] Found template row with {{{{}}}} at index $i');
+        break;
       }
     }
 
-    XmlElement? cloneSource;
+    if (templateRowElement == null) {
+      print('[DocxEngine] No template row with {{{{}}}}, will use _buildEmptyRow');
+    }
 
-    if (templateRows.isNotEmpty) {
-      cloneSource = templateRows.first;
-      for (final row in templateRows) {
-        row.parent!.children.remove(row);
+    for (int i = allRows.length - 1; i >= 1; i--) {
+      allRows[i].parent!.children.remove(allRows[i]);
+    }
+    print('[DocxEngine] Removed ${allRows.length - 1} non-header rows');
+
+    if (templateRowElement != null) {
+      print('[DocxEngine] Adding ${tableRows.length} rows from template');
+      for (int i = 0; i < tableRows.length; i++) {
+        final newRow = _buildRowFromTemplate(templateRowElement, tableRows[i]);
+        activityTable.children.add(newRow);
       }
-    } else {
-      XmlElement? emptyRow;
-      for (int i = 1; i < allRows.length; i++) {
-        if (_getRowText(allRows[i]).trim().isEmpty) {
-          emptyRow = allRows[i];
-          break;
-        }
-      }
-      if (emptyRow != null) {
-        cloneSource = emptyRow;
-        emptyRow.parent!.children.remove(emptyRow);
-      } else {
-        cloneSource = _createRowFromHeader(allRows.first);
+    } else if (allRows.isNotEmpty) {
+      final columnCount = _getGridColumnCount(allRows.first);
+      print('[DocxEngine] Adding ${tableRows.length} rows via _buildEmptyRow (columnCount=$columnCount)');
+      for (final rowData in tableRows) {
+        final newRow = _buildEmptyRow(columnCount, rowData);
+        activityTable.children.add(newRow);
       }
     }
 
-    final remainingRows = activityTable.findAllElements('tr', namespace: _nsW).toList();
-    for (int i = 1; i < remainingRows.length; i++) {
-      if (_getRowText(remainingRows[i]).trim().isEmpty) {
-        remainingRows[i].parent!.children.remove(remainingRows[i]);
-      }
-    }
-
-    for (final rowData in tableRows) {
-      final newRow = _cloneRow(cloneSource);
-      _replaceInClonedRow(newRow, rowData);
-      activityTable.children.add(newRow);
+    final finalRows = activityTable.findAllElements('tr', namespace: _nsW).toList();
+    print('[DocxEngine] Final activity table rows: ${finalRows.length}');
+    if (finalRows.length > 1) {
+      final firstDataRowT = finalRows[1].descendants
+          .whereType<XmlElement>()
+          .where((e) => e.name.local == 't')
+          .toList();
+      final firstRowText = firstDataRowT.map((t) => t.innerText).join(' | ');
+      print('[DocxEngine] First data row content: "$firstRowText"');
     }
   }
 
-  static XmlElement _createRowFromHeader(XmlElement headerRow) {
-    final headerCells = headerRow.findAllElements('tc', namespace: _nsW).toList();
-    final rowXml = StringBuffer('<w:tr xmlns:w="$_nsW">');
-    for (final _ in headerCells) {
-      rowXml.write('<w:tc><w:p><w:r><w:t xml:space="preserve"> </w:t></w:r></w:p></w:tc>');
-    }
-    rowXml.write('</w:tr>');
-    return XmlDocument.parse(rowXml.toString()).rootElement;
-  }
+  static XmlElement _buildRowFromTemplate(XmlElement templateRow, ReportRowModel rowData) {
+    final newRow = templateRow.copy();
 
-  static void _replaceInClonedRow(XmlElement row, ReportRowModel rowData) {
-    final replacements = {
-      'hari_tanggal': rowData.dayDate,
-      'jam_masuk': rowData.checkIn,
-      'jam_pulang': rowData.checkOut,
-      'kegiatan': rowData.kegiatan,
-    };
-
-    final allTElements = row.descendants
+    final tElements = newRow.descendants
         .whereType<XmlElement>()
         .where((e) => e.name.local == 't')
         .toList();
 
-    for (final tElement in allTElements) {
-      final value = tElement.innerText;
-      if (value.isEmpty) continue;
+    final replacements = <String, String>{
+      '{{hari_tanggal}}': rowData.dayDate,
+      '{{jam_masuk}}': rowData.checkIn,
+      '{{jam_pulang}}': rowData.checkOut,
+      '{{kegiatan}}': rowData.kegiatan,
+    };
 
-      // Try direct replacement with full {{key}} placeholder
-      var text = value;
+    for (final tElement in tElements) {
+      final text = tElement.innerText;
+      if (text.isEmpty) continue;
+
+      var newText = text;
       for (final entry in replacements.entries) {
-        final placeholder = '{{${entry.key}}}';
-        if (text.contains(placeholder)) {
-          text = text.replaceAll(placeholder, entry.value);
+        if (newText.contains(entry.key)) {
+          newText = newText.replaceAll(entry.key, entry.value);
+          break;
         }
       }
-      if (text != value) {
-        tElement.innerText = text;
-        continue;
-      }
 
-      // Handle split placeholder: text starts with {{ but no }}
-      if (text.contains('{{') && !text.contains('}}')) {
-        _replaceSplitPlaceholder(tElement, replacements);
+      if (newText != text) {
+        tElement.innerText = newText;
       }
     }
+
+    return newRow;
+  }
+
+  static int _getGridColumnCount(XmlElement headerRow) {
+    return headerRow.findAllElements('tc', namespace: _nsW).length;
+  }
+
+  static XmlElement _buildEmptyRow(int columnCount, ReportRowModel rowData) {
+    final positionalValues = [
+      rowData.dayDate,
+      rowData.checkIn,
+      rowData.checkOut,
+      rowData.kegiatan,
+    ];
+
+    final rowXml = StringBuffer('<w:tr xmlns:w="$_nsW">');
+    for (int i = 0; i < columnCount; i++) {
+      final text = i < positionalValues.length ? _escapeXmlText(positionalValues[i]) : '';
+      rowXml.write('<w:tc><w:p><w:r><w:t xml:space="preserve">$text</w:t></w:r></w:p></w:tc>');
+    }
+    rowXml.write('</w:tr>');
+    return XmlDocument.parse(rowXml.toString()).rootElement.copy();
+  }
+
+  static String _escapeXmlText(String text) {
+    return text
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&apos;');
   }
 
   static String _getRowText(XmlElement tr) {
@@ -298,10 +333,5 @@ class DocxTemplateEngine {
         .where((e) => e.name.local == 't')
         .map((t) => t.innerText)
         .join('');
-  }
-
-  static XmlElement _cloneRow(XmlElement original) {
-    final xmlString = original.toXmlString();
-    return XmlDocument.parse(xmlString).rootElement.copy();
   }
 }

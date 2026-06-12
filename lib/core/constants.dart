@@ -22,6 +22,7 @@ class AppConstants {
   static const String prefKeyWorkHours = 'work_hours_';
   static const String prefKeyRootFolder = 'root_folder';
   static const String prefKeySelectedRepos = 'selected_repos';
+  static const String prefKeyThemeMode = 'theme_mode';
 
   // Git commands
   static const String gitExecutable = 'git';
@@ -90,16 +91,29 @@ class AppCurves {
 class AppColors {
   AppColors._();
 
-  // Dark theme palette
+  // ==================== DARK THEME PALETTE ====================
+  // Background
   static const Color background = Color(0xFF0D1117);
   static const Color surface = Color(0xFF161B22);
   static const Color surfaceLight = Color(0xFF21262D);
   static const Color surfaceBorder = Color(0xFF30363D);
+  // Text
   static const Color textPrimary = Color(0xFFE6EDF3);
   static const Color textSecondary = Color(0xFF8B949E);
   static const Color textTertiary = Color(0xFF6E7681);
 
-  // Accent colors
+  // ==================== LIGHT THEME PALETTE ====================
+  // Background
+  static const Color lightBackground = Color(0xFFF6F8FA);
+  static const Color lightSurface = Color(0xFFFFFFFF);
+  static const Color lightSurfaceLight = Color(0xFFF3F4F6);
+  static const Color lightSurfaceBorder = Color(0xFFD0D7DE);
+  // Text
+  static const Color lightTextPrimary = Color(0xFF1F2328);
+  static const Color lightTextSecondary = Color(0xFF656D76);
+  static const Color lightTextTertiary = Color(0xFF8B949E);
+
+  // ==================== ACCENT COLORS (shared) ====================
   static const Color accentBlue = Color(0xFF58A6FF);
   static const Color accentPurple = Color(0xFFBC8CFF);
   static const Color accentGreen = Color(0xFF3FB950);
@@ -107,9 +121,24 @@ class AppColors {
   static const Color accentRed = Color(0xFFF85149);
   static const Color accentCyan = Color(0xFF39D2C0);
 
+  // ==================== LIGHT ACCENT COLORS ====================
+  static const Color lightAccentBlue = Color(0xFF0969DA);
+  static const Color lightAccentPurple = Color(0xFF8250DF);
+  static const Color lightAccentGreen = Color(0xFF1A7F37);
+  static const Color lightAccentOrange = Color(0xFF9A6700);
+  static const Color lightAccentRed = Color(0xFFCF222E);
+  static const Color lightAccentCyan = Color(0xFF0E7C7B);
+
   // Gradient
   static const LinearGradient accentGradient = LinearGradient(
     colors: [accentBlue, accentPurple],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  // Light gradient
+  static const LinearGradient lightAccentGradient = LinearGradient(
+    colors: [lightAccentBlue, lightAccentPurple],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -128,7 +157,25 @@ class AppColors {
     Color(0xFFD2A8FF),
   ];
 
+  // Light repository color palette
+  static const List<Color> lightRepoColors = [
+    lightAccentBlue,
+    lightAccentPurple,
+    lightAccentGreen,
+    lightAccentOrange,
+    lightAccentCyan,
+    Color(0xFFCF222E),
+    Color(0xFFBF3989),
+    Color(0xFFBC4C00),
+    Color(0xFF0550AE),
+    Color(0xFF8250DF),
+  ];
+
   static Color getRepoColor(int index) {
     return repoColors[index % repoColors.length];
+  }
+
+  static Color getLightRepoColor(int index) {
+    return lightRepoColors[index % lightRepoColors.length];
   }
 }

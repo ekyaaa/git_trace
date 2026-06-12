@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import '../core/constants.dart';
+import '../core/theme_colors.dart';
 import '../models/report_row_model.dart';
 import '../providers/commits_provider.dart';
 import '../providers/calendar_provider.dart';
@@ -57,6 +58,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
 
   Future<void> _export() async {
     final commits = ref.read(commitsProvider).valueOrNull ?? [];
+    final colors = ThemeColors.of(context);
 
     String? outputPath = await FilePicker.platform.getDirectoryPath(
       dialogTitle: 'Pilih Folder Simpan',
@@ -90,7 +92,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
               ? 'Berhasil! File disimpan di:\n$filePath'
               : 'Gagal membuat file Excel.'),
           backgroundColor:
-              filePath != null ? AppColors.accentGreen : AppColors.accentRed,
+              filePath != null ? colors.accentGreen : colors.accentRed,
           duration: const Duration(seconds: 4),
         ),
       );
@@ -100,14 +102,15 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
   Future<void> _exportWord() async {
     final commits = ref.read(commitsProvider).valueOrNull ?? [];
     final variables = ref.read(reportVariablesProvider);
+    final colors = ThemeColors.of(context);
 
     if (!variables.isFilled) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Isi data Nama, NIM, Prodi, dan Mitra di bagian Data Laporan terlebih dahulu.'),
-            backgroundColor: AppColors.accentOrange,
-            duration: Duration(seconds: 3),
+          SnackBar(
+            content: const Text('Isi data Nama, NIM, Prodi, dan Mitra di bagian Data Laporan terlebih dahulu.'),
+            backgroundColor: colors.accentOrange,
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -148,7 +151,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
               ? 'Berhasil! File disimpan di:\n$filePath'
               : 'Gagal membuat file Word.'),
           backgroundColor:
-              filePath != null ? AppColors.accentGreen : AppColors.accentRed,
+              filePath != null ? colors.accentGreen : colors.accentRed,
           duration: const Duration(seconds: 4),
         ),
       );
@@ -156,6 +159,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
   }
 
   Future<void> _pickCustomTemplate() async {
+    final colors = ThemeColors.of(context);
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['docx'],
@@ -169,7 +173,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Template custom dipilih: ${result.files.single.name}'),
-            backgroundColor: AppColors.accentGreen,
+            backgroundColor: colors.accentGreen,
             duration: const Duration(seconds: 2),
           ),
         );
@@ -180,6 +184,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
   @override
   Widget build(BuildContext context) {
     final calState = ref.watch(calendarStateProvider);
+    final colors = ThemeColors.of(context);
 
     return Column(
       children: [
@@ -188,10 +193,10 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
           child: Container(
             padding: const EdgeInsets.all(AppConstants.spacingXXLarge),
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: colors.surface,
               border: Border(
                 bottom: BorderSide(
-                  color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+                  color: colors.surfaceBorder.withValues(alpha: 0.5),
                 ),
               ),
             ),
@@ -206,25 +211,25 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: AppColors.accentBlue.withValues(alpha: 0.1),
+                            color: colors.accentBlue.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
                             border: Border.all(
-                              color: AppColors.accentBlue.withValues(alpha: 0.2),
+                              color: colors.accentBlue.withValues(alpha: 0.2),
                             ),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.file_download_outlined,
-                            color: AppColors.accentBlue,
+                            color: colors.accentBlue,
                             size: 20,
                           ),
                         ),
                         const SizedBox(width: 12),
-                        const Text(
+                        Text(
                           'Export Laporan',
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
+                            color: colors.textPrimary,
                             letterSpacing: -0.3,
                           ),
                         ),
@@ -233,9 +238,9 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                     const SizedBox(height: 8),
                     Text(
                       'Bulan ${calState.month}/${calState.year} • ${_previewRows.length} hari kerja',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: AppColors.textSecondary,
+                        color: colors.textSecondary,
                         letterSpacing: 0.1,
                       ),
                     ),
@@ -249,20 +254,20 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: AppColors.accentOrange.withValues(alpha: 0.1),
+                          color: colors.accentOrange.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
                           border: Border.all(
-                            color: AppColors.accentOrange.withValues(alpha: 0.25),
+                            color: colors.accentOrange.withValues(alpha: 0.25),
                           ),
                         ),
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
                           Icon(Icons.warning_amber,
-                              size: 14, color: AppColors.accentOrange.withValues(alpha: 0.9)),
+                              size: 14, color: colors.accentOrange.withValues(alpha: 0.9)),
                           const SizedBox(width: 6),
                           Text('${_missingDates.length} hari belum diisi jam',
                               style: TextStyle(
                                   fontSize: 11,
-                                  color: AppColors.accentOrange.withValues(alpha: 0.9),
+                                  color: colors.accentOrange.withValues(alpha: 0.9),
                                   fontWeight: FontWeight.w600)),
                         ]),
                       ),
@@ -272,10 +277,10 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                     delay: const Duration(milliseconds: 150),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: AppColors.background,
+                        color: colors.background,
                         borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
                         border: Border.all(
-                          color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+                          color: colors.surfaceBorder.withValues(alpha: 0.5),
                         ),
                       ),
                       child: Row(
@@ -356,7 +361,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                                     style: OutlinedButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(vertical: 10),
                                       side: BorderSide(
-                                        color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+                                        color: colors.surfaceBorder.withValues(alpha: 0.5),
                                       ),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
@@ -372,7 +377,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                                     },
                                     icon: const Icon(Icons.clear, size: 16),
                                     tooltip: 'Hapus template custom',
-                                    color: AppColors.accentRed,
+                                    color: colors.accentRed,
                                   ),
                                 ],
                               ],
@@ -386,11 +391,11 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
               // Preview table (fills remaining space)
               Expanded(
                 child: _loading
-                    ? const Center(
+                    ? Center(
                         child: Padding(
-                          padding: EdgeInsets.all(32.0),
+                          padding: const EdgeInsets.all(32.0),
                           child: CircularProgressIndicator(
-                            color: AppColors.accentBlue,
+                            color: colors.accentBlue,
                             strokeWidth: 2,
                           ),
                         ),
@@ -406,17 +411,17 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                                     child: Icon(
                                       Icons.table_chart_outlined,
                                       size: 64,
-                                      color: AppColors.textTertiary.withValues(alpha: 0.3),
+                                      color: colors.textTertiary.withValues(alpha: 0.3),
                                     ),
                                   ),
                                   const SizedBox(height: 16),
                                   FadeIn(
                                     delay: const Duration(milliseconds: 100),
-                                    child: const Text(
+                                    child: Text(
                                       'Belum ada data untuk di-export',
                                       style: TextStyle(
                                         fontSize: 14,
-                                        color: AppColors.textSecondary,
+                                        color: colors.textSecondary,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
@@ -424,11 +429,11 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                                   const SizedBox(height: 4),
                                   FadeIn(
                                     delay: const Duration(milliseconds: 150),
-                                    child: const Text(
+                                    child: Text(
                                       'Muat commit terlebih dahulu dari tab Kalender',
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: AppColors.textTertiary,
+                                        color: colors.textTertiary,
                                       ),
                                     ),
                                   ),
@@ -449,10 +454,10 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
             child: Container(
               padding: const EdgeInsets.all(AppConstants.spacingMedium),
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: colors.surface,
                 border: Border(
                   top: BorderSide(
-                    color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+                    color: colors.surfaceBorder.withValues(alpha: 0.5),
                   ),
                 ),
               ),
@@ -460,13 +465,13 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                 Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: AppColors.accentGreen.withValues(alpha: 0.1),
+                    color: colors.accentGreen.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.check_circle,
                     size: 14,
-                    color: AppColors.accentGreen,
+                    color: colors.accentGreen,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -475,7 +480,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                     'File terakhir: $_lastExportPath',
                     style: TextStyle(
                       fontSize: 11,
-                      color: AppColors.textTertiary.withValues(alpha: 0.8),
+                      color: colors.textTertiary.withValues(alpha: 0.8),
                       letterSpacing: 0.1,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -490,6 +495,8 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
 
   Widget _buildFormatButton(String format, String label, IconData icon) {
     final isSelected = _exportFormat == format;
+    final colors = ThemeColors.of(context);
+
     return InkWell(
       onTap: () => setState(() => _exportFormat = format),
       borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
@@ -497,7 +504,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.accentBlue.withValues(alpha: 0.15)
+              ? colors.accentBlue.withValues(alpha: 0.15)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
         ),
@@ -507,7 +514,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
             Icon(
               icon,
               size: 16,
-              color: isSelected ? AppColors.accentBlue : AppColors.textSecondary,
+              color: isSelected ? colors.accentBlue : colors.textSecondary,
             ),
             const SizedBox(width: 6),
             Text(
@@ -515,7 +522,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected ? AppColors.accentBlue : AppColors.textSecondary,
+                color: isSelected ? colors.accentBlue : colors.textSecondary,
               ),
             ),
           ],

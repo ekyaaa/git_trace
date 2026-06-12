@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants.dart';
-import '../../core/theme.dart';
+import '../../core/theme_colors.dart';
 
 class MonthNavigator extends StatelessWidget {
   final int month;
@@ -21,6 +21,7 @@ class MonthNavigator extends StatelessWidget {
   Widget build(BuildContext context) {
     final date = DateTime(year, month);
     final monthName = DateFormat('MMMM yyyy', 'id_ID').format(date);
+    final colors = ThemeColors.of(context);
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -30,19 +31,19 @@ class MonthNavigator extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           decoration: BoxDecoration(
-            color: AppColors.surfaceLight,
+            color: colors.surfaceLight,
             borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
             border: Border.all(
-              color: AppColors.surfaceBorder.withValues(alpha: 0.6),
+              color: colors.surfaceBorder.withValues(alpha: 0.6),
             ),
-            boxShadow: AppTheme.subtleShadow,
+            boxShadow: colors.subtleShadow,
           ),
           child: Text(
             monthName.substring(0, 1).toUpperCase() + monthName.substring(1),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: colors.textPrimary,
               letterSpacing: -0.2,
             ),
           ),
@@ -70,6 +71,8 @@ class _NavButtonState extends State<_NavButton> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = ThemeColors.of(context);
+
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
@@ -88,17 +91,17 @@ class _NavButtonState extends State<_NavButton> {
             curve: AppCurves.easeOutExpo,
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: _hovered ? AppColors.surfaceLight : Colors.transparent,
+              color: _hovered ? colors.surfaceLight : Colors.transparent,
               borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
               border: Border.all(
-                color: _hovered ? AppColors.surfaceBorder : Colors.transparent,
+                color: _hovered ? colors.surfaceBorder : Colors.transparent,
               ),
-              boxShadow: _hovered ? AppTheme.subtleShadow : null,
+              boxShadow: _hovered ? colors.subtleShadow : null,
             ),
             child: Icon(
               widget.icon,
               size: 20,
-              color: _hovered ? AppColors.textPrimary : AppColors.textSecondary,
+              color: _hovered ? colors.textPrimary : colors.textSecondary,
             ),
           ),
         ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants.dart';
+import '../../core/theme_colors.dart';
 import '../../models/commit_model.dart';
 
 class DayCommitsDialog extends StatelessWidget {
@@ -19,13 +20,14 @@ class DayCommitsDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final dateStr = DateFormat('EEEE, d MMMM yyyy', 'id_ID').format(date);
     final hasCommits = commits.isNotEmpty;
+    final colors = ThemeColors.of(context);
 
     return AlertDialog(
-      backgroundColor: AppColors.surface,
+      backgroundColor: colors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
         side: BorderSide(
-          color: AppColors.surfaceBorder.withValues(alpha: 0.6),
+          color: colors.surfaceBorder.withValues(alpha: 0.6),
         ),
       ),
       title: Row(
@@ -33,33 +35,34 @@ class DayCommitsDialog extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: AppColors.accentBlue.withValues(alpha: 0.12),
+              color: colors.accentBlue.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
               border: Border.all(
-                color: AppColors.accentBlue.withValues(alpha: 0.2),
+                color: colors.accentBlue.withValues(alpha: 0.2),
                 width: 1,
               ),
             ),
-            child: const Icon(Icons.commit_rounded,
-                color: AppColors.accentBlue, size: 20),
+            child: Icon(Icons.commit_rounded,
+                color: colors.accentBlue, size: 20),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Detail Aktivitas',
+                Text('Detail Aktivitas',
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
                       letterSpacing: -0.2,
+                      color: colors.textPrimary,
                     )),
                 const SizedBox(height: 2),
                 Text(
                   dateStr,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.textSecondary,
+                    color: colors.textSecondary,
                     fontWeight: FontWeight.w400,
                     letterSpacing: 0.1,
                   ),
@@ -69,7 +72,7 @@ class DayCommitsDialog extends StatelessWidget {
           ),
           IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.close, size: 18, color: AppColors.textTertiary),
+            icon: Icon(Icons.close, size: 18, color: colors.textTertiary),
             splashRadius: 20,
           ),
         ],
@@ -90,14 +93,14 @@ class DayCommitsDialog extends StatelessWidget {
                       Icon(
                         Icons.inbox_outlined,
                         size: 40,
-                        color: AppColors.textTertiary.withValues(alpha: 0.3),
+                        color: colors.textTertiary.withValues(alpha: 0.3),
                       ),
                       const SizedBox(height: 12),
-                      const Text(
+                      Text(
                         'Tidak ada aktivitas commit di hari ini.',
                         style: TextStyle(
                           fontSize: 13,
-                          color: AppColors.textSecondary,
+                          color: colors.textSecondary,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -108,12 +111,12 @@ class DayCommitsDialog extends StatelessWidget {
             else ...[
               Row(
                 children: [
-                  const Text(
+                  Text(
                     'Aktivitas Commit',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                      color: colors.textPrimary,
                       letterSpacing: 0.2,
                     ),
                   ),
@@ -121,15 +124,15 @@ class DayCommitsDialog extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: AppColors.accentBlue.withValues(alpha: 0.1),
+                      color: colors.accentBlue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
                       '${commits.length}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.accentBlue,
+                        color: colors.accentBlue,
                       ),
                     ),
                   ),
@@ -145,12 +148,12 @@ class DayCommitsDialog extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final commit = commits[index];
                     final colorIndex = repoColorMap[commit.repoName] ?? 0;
-                    final color = AppColors.getRepoColor(colorIndex);
+                    final color = colors.getRepoColor(colorIndex);
 
                     return Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: AppColors.surfaceLight,
+                        color: colors.surfaceLight,
                         borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
                         border: Border.all(
                           color: color.withValues(alpha: 0.25),
@@ -192,14 +195,14 @@ class DayCommitsDialog extends StatelessWidget {
                                   Icon(
                                     Icons.access_time,
                                     size: 10,
-                                    color: AppColors.textTertiary.withValues(alpha: 0.6),
+                                    color: colors.textTertiary.withValues(alpha: 0.6),
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
                                     commit.timeString,
                                     style: TextStyle(
                                       fontSize: 10,
-                                      color: AppColors.textTertiary.withValues(alpha: 0.6),
+                                      color: colors.textTertiary.withValues(alpha: 0.6),
                                       fontWeight: FontWeight.w500,
                                       letterSpacing: 0.2,
                                     ),
@@ -212,10 +215,10 @@ class DayCommitsDialog extends StatelessWidget {
                           Text(
                             commit.subject,
                             softWrap: true,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13,
                               height: 1.5,
-                              color: AppColors.textPrimary,
+                              color: colors.textPrimary,
                               fontWeight: FontWeight.w500,
                               letterSpacing: 0.1,
                             ),
@@ -225,7 +228,7 @@ class DayCommitsDialog extends StatelessWidget {
                             commit.authorName,
                             style: TextStyle(
                               fontSize: 10,
-                              color: AppColors.textTertiary.withValues(alpha: 0.5),
+                              color: colors.textTertiary.withValues(alpha: 0.5),
                               letterSpacing: 0.2,
                             ),
                           ),

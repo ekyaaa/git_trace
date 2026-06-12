@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
+import '../../core/theme_colors.dart';
 import '../../core/extensions.dart';
 
 class BulkHourDialog extends StatefulWidget {
@@ -36,30 +37,32 @@ class _BulkHourDialogState extends State<BulkHourDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = ThemeColors.of(context);
+
     return AlertDialog(
-      backgroundColor: AppColors.surface,
+      backgroundColor: colors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
         side: BorderSide(
-          color: AppColors.surfaceBorder.withValues(alpha: 0.6),
+          color: colors.surfaceBorder.withValues(alpha: 0.6),
         ),
       ),
       title: Row(children: [
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: AppColors.accentPurple.withValues(alpha: 0.12),
+            color: colors.accentPurple.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
             border: Border.all(
-              color: AppColors.accentPurple.withValues(alpha: 0.2),
+              color: colors.accentPurple.withValues(alpha: 0.2),
               width: 1,
             ),
           ),
-          child: const Icon(Icons.date_range,
-              color: AppColors.accentPurple, size: 20),
+          child: Icon(Icons.date_range,
+              color: colors.accentPurple, size: 20),
         ),
         const SizedBox(width: 14),
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -68,12 +71,13 @@ class _BulkHourDialogState extends State<BulkHourDialog> {
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.2,
+                    color: colors.textPrimary,
                   )),
-              SizedBox(height: 2),
+              const SizedBox(height: 2),
               Text('Set jam untuk seluruh bulan',
                   style: TextStyle(
                       fontSize: 12,
-                      color: AppColors.textSecondary,
+                      color: colors.textSecondary,
                       fontWeight: FontWeight.w400,
                       letterSpacing: 0.1)),
             ],
@@ -94,7 +98,7 @@ class _BulkHourDialogState extends State<BulkHourDialog> {
                 helperText: 'Contoh: 08.00',
                 helperStyle: TextStyle(
                   fontSize: 11,
-                  color: AppColors.textTertiary.withValues(alpha: 0.6),
+                  color: colors.textTertiary.withValues(alpha: 0.6),
                 ),
               ),
             ),
@@ -108,29 +112,30 @@ class _BulkHourDialogState extends State<BulkHourDialog> {
                 helperText: 'Contoh: 17.00',
                 helperStyle: TextStyle(
                   fontSize: 11,
-                  color: AppColors.textTertiary.withValues(alpha: 0.6),
+                  color: colors.textTertiary.withValues(alpha: 0.6),
                 ),
               ),
             ),
             const SizedBox(height: 8),
             CheckboxListTile(
-              title: const Text('Hanya hari kerja (Senin-Jumat)',
+              title: Text('Hanya hari kerja (Senin-Jumat)',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
+                    color: colors.textPrimary,
                   )),
-              subtitle: const Text(
+              subtitle: Text(
                 'Abaikan hari Sabtu & Minggu',
                 style: TextStyle(
                   fontSize: 11,
-                  color: AppColors.textTertiary,
+                  color: colors.textTertiary,
                 ),
               ),
               value: _weekdaysOnly,
               onChanged: (v) => setState(() => _weekdaysOnly = v ?? true),
               contentPadding: EdgeInsets.zero,
               controlAffinity: ListTileControlAffinity.leading,
-              activeColor: AppColors.accentPurple,
+              activeColor: colors.accentPurple,
               checkColor: Colors.white,
             ),
           ],
@@ -148,7 +153,7 @@ class _BulkHourDialogState extends State<BulkHourDialog> {
         ElevatedButton(
           onPressed: _saving ? null : _save,
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.accentPurple,
+            backgroundColor: colors.accentPurple,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           ),
           child: _saving
@@ -164,6 +169,7 @@ class _BulkHourDialogState extends State<BulkHourDialog> {
   }
 
   Future<void> _save() async {
+    final colors = ThemeColors.of(context);
     final checkIn = _checkInController.text.trim();
     final checkOut = _checkOutController.text.trim();
 
@@ -171,7 +177,7 @@ class _BulkHourDialogState extends State<BulkHourDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Format waktu harus HH.MM (contoh: 08.00)'),
-          backgroundColor: AppColors.accentRed,
+          backgroundColor: colors.accentRed,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
@@ -190,7 +196,7 @@ class _BulkHourDialogState extends State<BulkHourDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Jam kerja berhasil diterapkan!'),
-          backgroundColor: AppColors.accentGreen,
+          backgroundColor: colors.accentGreen,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppConstants.radiusMedium),

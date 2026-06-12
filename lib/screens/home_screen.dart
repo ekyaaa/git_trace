@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import '../core/constants.dart';
-import '../core/theme.dart';
+import '../core/theme_colors.dart';
 import '../core/transitions.dart';
 
 import '../providers/folder_provider.dart';
@@ -11,6 +11,7 @@ import '../providers/selected_repos_provider.dart';
 import '../providers/commits_provider.dart';
 import '../providers/calendar_provider.dart';
 import '../providers/work_hours_provider.dart';
+import '../providers/theme_provider.dart';
 import '../widgets/repo_selector/repo_list_tile.dart';
 import '../widgets/animations/fade_in.dart';
 import '../widgets/animations/scale_on_hover.dart';
@@ -57,6 +58,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final selectedTab = ref.watch(selectedTabProvider);
     final folder = ref.watch(folderProvider);
+    final colors = ThemeColors.of(context);
 
     return Scaffold(
       body: Row(
@@ -67,7 +69,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           // Vertical divider
           Container(
             width: 1,
-            color: AppColors.surfaceBorder,
+            color: colors.surfaceBorder,
           ),
 
           // Main content
@@ -87,10 +89,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final repos = ref.watch(repositoriesProvider);
     final selectedRepos = ref.watch(selectedReposProvider);
     final selectedTab = ref.watch(selectedTabProvider);
+    final colors = ThemeColors.of(context);
 
     return Container(
       width: AppConstants.sidebarWidth,
-      color: AppColors.surface,
+      color: colors.surface,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -119,19 +122,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const Divider(height: 1),
             _buildActionBar(selectedRepos),
           ],
+
+          // Theme toggle
+          const Divider(height: 1),
+          _buildThemeToggle(),
         ],
       ),
     );
   }
 
   Widget _buildAppHeader() {
+    final colors = ThemeColors.of(context);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppConstants.spacingXLarge, vertical: AppConstants.spacingLarge),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppColors.surface,
-            AppColors.background.withValues(alpha: 0.8),
+            colors.surface,
+            colors.background.withValues(alpha: 0.8),
           ],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -144,7 +153,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             height: 40,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
-              boxShadow: AppTheme.subtleShadow,
+              boxShadow: colors.subtleShadow,
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
@@ -163,7 +172,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               children: [
                 ShaderMask(
                   shaderCallback: (bounds) =>
-                      AppColors.accentGradient.createShader(bounds),
+                      colors.accentGradient.createShader(bounds),
                   child: const Text(
                     AppConstants.appName,
                     style: TextStyle(
@@ -177,9 +186,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 const SizedBox(height: 2),
                 Text(
                   AppConstants.appTagline,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 10,
-                    color: AppColors.textTertiary,
+                    color: colors.textTertiary,
                     fontWeight: FontWeight.w400,
                     letterSpacing: 0.3,
                   ),
@@ -193,18 +202,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildFolderSection(String? folder) {
+    final colors = ThemeColors.of(context);
+
     return Padding(
       padding: const EdgeInsets.all(AppConstants.spacingMedium),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           FadeIn(
-            child: const Text(
+            child: Text(
               'ROOT FOLDER',
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textTertiary,
+                color: colors.textTertiary,
                 letterSpacing: 1.2,
               ),
             ),
@@ -217,14 +228,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               builder: (context, isHovered, isPressed) {
                 final borderColor = isHovered
                     ? (folder != null
-                        ? AppColors.accentOrange.withValues(alpha: 0.6)
-                        : AppColors.accentBlue.withValues(alpha: 0.6))
-                    : AppColors.surfaceBorder;
+                        ? colors.accentOrange.withValues(alpha: 0.6)
+                        : colors.accentBlue.withValues(alpha: 0.6))
+                    : colors.surfaceBorder;
                 final bgColor = isPressed
-                    ? AppColors.surfaceLight.withValues(alpha: 0.7)
+                    ? colors.surfaceLight.withValues(alpha: 0.7)
                     : isHovered
-                        ? AppColors.surfaceLight.withValues(alpha: 0.9)
-                        : AppColors.surfaceLight;
+                        ? colors.surfaceLight.withValues(alpha: 0.9)
+                        : colors.surfaceLight;
 
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -236,8 +247,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ? [
                             BoxShadow(
                               color: (folder != null
-                                      ? AppColors.accentOrange
-                                      : AppColors.accentBlue)
+                                      ? colors.accentOrange
+                                      : colors.accentBlue)
                                   .withValues(alpha: 0.12),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
@@ -249,15 +260,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               offset: const Offset(0, 2),
                             ),
                           ]
-                        : AppTheme.subtleShadow,
+                        : colors.subtleShadow,
                   ),
                   child: Row(
                     children: [
                       Icon(
                         folder != null ? Icons.folder_open : Icons.folder_outlined,
                         color: folder != null
-                            ? AppColors.accentOrange
-                            : AppColors.textTertiary,
+                            ? colors.accentOrange
+                            : colors.textTertiary,
                         size: 18,
                       ),
                       const SizedBox(width: 8),
@@ -268,16 +279,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             fontSize: 12,
                             fontWeight: folder != null ? FontWeight.w500 : FontWeight.w400,
                             color: folder != null
-                                ? AppColors.textPrimary
-                                : AppColors.textTertiary,
+                                ? colors.textPrimary
+                                : colors.textTertiary,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const Icon(
+                      Icon(
                         Icons.chevron_right,
                         size: 16,
-                        color: AppColors.textTertiary,
+                        color: colors.textTertiary,
                       ),
                     ],
                   ),
@@ -321,10 +332,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     AsyncValue<List<dynamic>> repos,
     Set<String> selectedRepos,
   ) {
+    final colors = ThemeColors.of(context);
+
     return repos.when(
-      loading: () => const Center(
+      loading: () => Center(
         child: Padding(
-          padding: EdgeInsets.all(20),
+          padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -333,15 +346,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 height: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: AppColors.accentBlue,
+                  color: colors.accentBlue,
                 ),
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               Text(
                 'Memindai repositori...',
                 style: TextStyle(
                   fontSize: 12,
-                  color: AppColors.textTertiary,
+                  color: colors.textTertiary,
                 ),
               ),
             ],
@@ -354,13 +367,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, color: AppColors.accentRed, size: 32),
+              Icon(Icons.error_outline, color: colors.accentRed, size: 32),
               const SizedBox(height: 8),
               Text(
                 'Error: $error',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: AppColors.textSecondary,
+                  color: colors.textSecondary,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -384,24 +397,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 children: [
                   Icon(
                     Icons.source_outlined,
-                    color: AppColors.textTertiary.withValues(alpha: 0.5),
+                    color: colors.textTertiary.withValues(alpha: 0.5),
                     size: 48,
                   ),
                   const SizedBox(height: 12),
-                  const Text(
+                  Text(
                     'Belum ada repository',
                     style: TextStyle(
                       fontSize: 13,
-                      color: AppColors.textSecondary,
+                      color: colors.textSecondary,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                     'Pilih folder yang berisi project Git',
                     style: TextStyle(
                       fontSize: 11,
-                      color: AppColors.textTertiary,
+                      color: colors.textTertiary,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -422,10 +435,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 children: [
                   Text(
                     'REPOSITORIES (${repoList.length})',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textTertiary,
+                      color: colors.textTertiary,
                       letterSpacing: 1.2,
                     ),
                   ),
@@ -440,14 +453,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: AppColors.accentBlue.withValues(alpha: 0.08),
+                            color: colors.accentBlue.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
                           ),
-                          child: const Text(
+                          child: Text(
                             'Semua',
                             style: TextStyle(
                               fontSize: 10,
-                              color: AppColors.accentBlue,
+                              color: colors.accentBlue,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -464,11 +477,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             color: Colors.transparent,
                             borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
                           ),
-                          child: const Text(
+                          child: Text(
                             'Kosongkan',
                             style: TextStyle(
                               fontSize: 10,
-                              color: AppColors.textTertiary,
+                              color: colors.textTertiary,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -511,13 +524,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildActionBar(Set<String> selectedRepos) {
+    final colors = ThemeColors.of(context);
+
     return Container(
       padding: const EdgeInsets.all(AppConstants.spacingMedium),
       decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.5),
+        color: colors.surface.withValues(alpha: 0.5),
         border: Border(
           top: BorderSide(
-            color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+            color: colors.surfaceBorder.withValues(alpha: 0.5),
           ),
         ),
       ),
@@ -525,9 +540,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: [
           Text(
             '${selectedRepos.length} repo dipilih',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
-              color: AppColors.textTertiary,
+              color: colors.textTertiary,
               fontWeight: FontWeight.w500,
               letterSpacing: 0.2,
             ),
@@ -549,6 +564,128 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildThemeToggle() {
+    final themeMode = ref.watch(themeModeProvider);
+    final isDark = themeMode == AppThemeMode.dark;
+    final colors = ThemeColors.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppConstants.spacingMedium,
+        vertical: AppConstants.spacingSmall,
+      ),
+      child: ScaleOnHoverBuilder(
+        onTap: () {
+          ref.read(themeModeProvider.notifier).toggleTheme();
+        },
+        builder: (context, isHovered, isPressed) {
+          final bgColor = isPressed
+              ? colors.surfaceLight.withValues(alpha: 0.7)
+              : isHovered
+                  ? colors.surfaceLight.withValues(alpha: 0.9)
+                  : colors.surfaceLight;
+
+          final borderColor = isHovered
+              ? colors.accentBlue.withValues(alpha: 0.4)
+              : colors.surfaceBorder;
+
+          return AnimatedContainer(
+            duration: AppConstants.animDurationFast,
+            curve: AppCurves.easeOutExpo,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+              border: Border.all(color: borderColor),
+              boxShadow: isHovered ? colors.glowShadowBlue : colors.subtleShadow,
+            ),
+            child: Row(
+              children: [
+                AnimatedSwitcher(
+                  duration: AppConstants.animDurationNormal,
+                  transitionBuilder: (child, animation) {
+                    return RotationTransition(
+                      turns: animation,
+                      child: child,
+                    );
+                  },
+                  child: Icon(
+                    isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                    key: ValueKey(isDark),
+                    color: isDark ? colors.accentPurple : colors.accentOrange,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isDark ? 'Dark Mode' : 'Light Mode',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: colors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Klik untuk mengubah tema',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: colors.textTertiary.withValues(alpha: 0.8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                AnimatedContainer(
+                  duration: AppConstants.animDurationFast,
+                  width: 36,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? colors.accentPurple.withValues(alpha: 0.3)
+                        : colors.accentOrange.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: isDark
+                          ? colors.accentPurple.withValues(alpha: 0.5)
+                          : colors.accentOrange.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: AnimatedAlign(
+                    duration: AppConstants.animDurationFast,
+                    curve: AppCurves.easeOutExpo,
+                    alignment: isDark ? Alignment.centerRight : Alignment.centerLeft,
+                    child: Container(
+                      width: 16,
+                      height: 16,
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      decoration: BoxDecoration(
+                        color: isDark ? colors.accentPurple : colors.accentOrange,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: (isDark ? colors.accentPurple : colors.accentOrange)
+                                .withValues(alpha: 0.4),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -578,11 +715,12 @@ class _NavTabState extends State<_NavTab> {
   @override
   Widget build(BuildContext context) {
     final isSelected = widget.isSelected;
+    final colors = ThemeColors.of(context);
 
     final bgColor = isSelected
-        ? AppColors.accentBlue.withValues(alpha: 0.12)
+        ? colors.accentBlue.withValues(alpha: 0.12)
         : _isHovered
-            ? AppColors.surfaceLight.withValues(alpha: 0.5)
+            ? colors.surfaceLight.withValues(alpha: 0.5)
             : Colors.transparent;
 
     return MouseRegion(
@@ -606,12 +744,12 @@ class _NavTabState extends State<_NavTab> {
               color: bgColor,
               borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
               border: isSelected
-                  ? Border.all(color: AppColors.accentBlue.withValues(alpha: 0.4))
+                  ? Border.all(color: colors.accentBlue.withValues(alpha: 0.4))
                   : _isHovered
-                      ? Border.all(color: AppColors.surfaceBorder)
+                      ? Border.all(color: colors.surfaceBorder)
                       : Border.all(color: Colors.transparent),
               boxShadow: isSelected && _isHovered
-                  ? AppTheme.glowShadowBlue
+                  ? colors.glowShadowBlue
                   : null,
             ),
             child: Column(
@@ -624,10 +762,10 @@ class _NavTabState extends State<_NavTab> {
                       widget.icon,
                       size: 16,
                       color: isSelected
-                          ? AppColors.accentBlue
+                          ? colors.accentBlue
                           : _isHovered
-                              ? AppColors.textPrimary
-                              : AppColors.textSecondary,
+                              ? colors.textPrimary
+                              : colors.textSecondary,
                     ),
                     const SizedBox(width: 6),
                     Text(
@@ -636,10 +774,10 @@ class _NavTabState extends State<_NavTab> {
                         fontSize: 12,
                         fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                         color: isSelected
-                            ? AppColors.accentBlue
+                            ? colors.accentBlue
                             : _isHovered
-                                ? AppColors.textPrimary
-                                : AppColors.textSecondary,
+                                ? colors.textPrimary
+                                : colors.textSecondary,
                         letterSpacing: 0.2,
                       ),
                     ),
@@ -651,7 +789,7 @@ class _NavTabState extends State<_NavTab> {
                     height: 2,
                     width: 24,
                     decoration: BoxDecoration(
-                      color: AppColors.accentBlue,
+                      color: colors.accentBlue,
                       borderRadius: BorderRadius.circular(1),
                     ),
                   ),

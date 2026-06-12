@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/constants.dart';
+import '../core/theme_colors.dart';
 import '../models/commit_model.dart';
 import '../providers/commits_provider.dart';
 import '../providers/calendar_provider.dart';
@@ -47,13 +48,15 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
   Widget _buildTopBar(CalendarState calState, int totalCommits, int activeDays,
       int repoCount, Map workHours) {
+    final colors = ThemeColors.of(context);
+
     return Container(
       padding: const EdgeInsets.fromLTRB(AppConstants.spacingXXLarge, AppConstants.spacingLarge, AppConstants.spacingXXLarge, AppConstants.spacingMedium),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colors.surface,
         border: Border(
           bottom: BorderSide(
-            color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+            color: colors.surfaceBorder.withValues(alpha: 0.5),
           ),
         ),
       ),
@@ -92,39 +95,41 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         ),
         const SizedBox(height: 14),
         Row(children: [
-          _stat(Icons.commit, '$totalCommits', 'Commit', AppColors.accentBlue),
+          _stat(Icons.commit, '$totalCommits', 'Commit', colors.accentBlue),
           const SizedBox(width: 20),
           _stat(Icons.calendar_today, '$activeDays', 'Hari Aktif',
-              AppColors.accentGreen),
+              colors.accentGreen),
           const SizedBox(width: 20),
-          _stat(Icons.source, '$repoCount', 'Repo', AppColors.accentPurple),
+          _stat(Icons.source, '$repoCount', 'Repo', colors.accentPurple),
           const SizedBox(width: 20),
           _stat(Icons.access_time, '${workHours.length}', 'Jam Diisi',
-              AppColors.accentOrange),
+              colors.accentOrange),
         ]),
       ]),
     );
   }
 
   Widget _chip(IconData icon, String label, VoidCallback onTap) {
+    final colors = ThemeColors.of(context);
+
     return ScaleOnHover(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: AppColors.surfaceBorder.withValues(alpha: 0.2),
+          color: colors.surfaceBorder.withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
           border: Border.all(
-            color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+            color: colors.surfaceBorder.withValues(alpha: 0.5),
           ),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 14, color: AppColors.textSecondary),
+          Icon(icon, size: 14, color: colors.textSecondary),
           const SizedBox(width: 6),
           Text(label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: AppColors.textSecondary,
+                color: colors.textSecondary,
                 fontWeight: FontWeight.w500,
                 letterSpacing: 0.1,
               )),
@@ -134,6 +139,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   }
 
   Widget _stat(IconData icon, String value, String label, Color color) {
+    final colors = ThemeColors.of(context);
+
     return FadeIn(
       delay: const Duration(milliseconds: 60),
       slideOffset: const Offset(0, 8),
@@ -156,13 +163,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: colors.textPrimary,
                 letterSpacing: -0.2,
               )),
           Text(label,
               style: TextStyle(
                 fontSize: 10,
-                color: AppColors.textTertiary,
+                color: colors.textTertiary,
                 fontWeight: FontWeight.w500,
                 letterSpacing: 0.2,
               )),
@@ -174,9 +181,11 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   Widget _buildCalendar(AsyncValue<List<CommitModel>> commits,
       CalendarState calState, Map<DateTime, List<CommitModel>> commitsByDate,
       Map workHours) {
+    final colors = ThemeColors.of(context);
+
     return commits.when(
-      loading: () => const Center(
-        child: CircularProgressIndicator(color: AppColors.accentBlue, strokeWidth: 2),
+      loading: () => Center(
+        child: CircularProgressIndicator(color: colors.accentBlue, strokeWidth: 2),
       ),
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (_) => MonthCalendar(

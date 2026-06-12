@@ -60,7 +60,9 @@ class DocxExporter {
       await file.writeAsBytes(docxBytes);
 
       return filePath;
-    } catch (e) {
+    } catch (e, stack) {
+      print('DOCX export error: $e');
+      print('Stack: $stack');
       return null;
     }
   }

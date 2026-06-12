@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
+import '../../core/theme_colors.dart';
 import '../../models/commit_model.dart';
 import '../../services/work_hours_storage.dart';
 import 'calendar_day_cell.dart';
@@ -22,6 +23,8 @@ class MonthCalendar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = ThemeColors.of(context);
+
     // Build repo color map
     final repoColorMap = <String, int>{};
     int colorIdx = 0;
@@ -45,10 +48,10 @@ class MonthCalendar extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: colors.surface,
             border: Border(
               bottom: BorderSide(
-                color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+                color: colors.surfaceBorder.withValues(alpha: 0.5),
               ),
             ),
           ),
@@ -63,8 +66,8 @@ class MonthCalendar extends StatelessWidget {
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       color: isWeekend
-                          ? AppColors.accentRed.withValues(alpha: 0.6)
-                          : AppColors.textTertiary,
+                          ? colors.accentRed.withValues(alpha: 0.6)
+                          : colors.textTertiary,
                       letterSpacing: 0.5,
                     ),
                   ),
@@ -77,17 +80,17 @@ class MonthCalendar extends StatelessWidget {
         // Calendar grid
         Expanded(
           child: _buildGrid(
-              firstDay, daysInMonth, startWeekday, repoColorMap),
+              firstDay, daysInMonth, startWeekday, repoColorMap, colors),
         ),
 
         // Legend
-        if (repoColorMap.isNotEmpty) _buildLegend(repoColorMap),
+        if (repoColorMap.isNotEmpty) _buildLegend(repoColorMap, colors),
       ],
     );
   }
 
   Widget _buildGrid(DateTime firstDay, int daysInMonth, int startWeekday,
-      Map<String, int> repoColorMap) {
+      Map<String, int> repoColorMap, ThemeColors colors) {
     // We need 6 rows max
     final totalCells = 42; // 7 * 6
     final cells = <Widget>[];
@@ -151,14 +154,14 @@ class MonthCalendar extends StatelessWidget {
     );
   }
 
-  Widget _buildLegend(Map<String, int> repoColorMap) {
+  Widget _buildLegend(Map<String, int> repoColorMap, ThemeColors colors) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colors.surface,
         border: Border(
           top: BorderSide(
-            color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+            color: colors.surfaceBorder.withValues(alpha: 0.5),
           ),
         ),
       ),
@@ -166,7 +169,7 @@ class MonthCalendar extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         child: Row(
           children: repoColorMap.entries.map((entry) {
-            final color = AppColors.getRepoColor(entry.value);
+            final color = colors.getRepoColor(entry.value);
             return Container(
               margin: const EdgeInsets.only(right: 12),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -192,10 +195,10 @@ class MonthCalendar extends StatelessWidget {
                   const SizedBox(width: 6),
                   Text(
                     entry.key,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w500,
-                      color: AppColors.textSecondary,
+                      color: colors.textSecondary,
                       letterSpacing: 0.2,
                     ),
                   ),
