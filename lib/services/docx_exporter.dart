@@ -43,14 +43,15 @@ class DocxExporter {
         'nim': variables.nim,
         'prodi': variables.prodi,
         'mitra': variables.mitra,
-        'pembimbing': variables.pembimbing,
-        'pembimbing_lapangan': variables.pembimbingLapangan,
-        'nama_mahasiswa': variables.namaMahasiswa,
+        'pembimbing': variables.namaPembimbing,
+        'pembimbing_lapangan': variables.namaPembimbingLapangan,
+        'nama_mahasiswa': variables.namaMahasiswa.isNotEmpty ? variables.namaMahasiswa : variables.nama,
         'nama_pembimbing': variables.namaPembimbing,
         'nama_pembimbing_lapangan': variables.namaPembimbingLapangan,
         'bulan': month.toString().padLeft(2, '0'),
         'tahun': year.toString(),
       };
+      print('[DocxExport] variableMap: nama_mahasiswa="${variableMap['nama_mahasiswa']}", nama_pembimbing="${variableMap['nama_pembimbing']}", nama_pembimbing_lapangan="${variableMap['nama_pembimbing_lapangan']}"');
 
       // 4. Generate docx
       final docxBytes = await DocxTemplateEngine.generate(

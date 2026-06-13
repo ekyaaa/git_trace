@@ -21,6 +21,7 @@ class ReportVariablesNotifier extends StateNotifier<ReportVariableModel> {
       try {
         final json = jsonDecode(jsonStr) as Map<String, dynamic>;
         state = ReportVariableModel.fromJson(json);
+        print('[ReportVars] Loaded from storage: namaMahasiswa="${state.namaMahasiswa}", namaPembimbing="${state.namaPembimbing}", namaPembimbingLapangan="${state.namaPembimbingLapangan}"');
       } catch (_) {
         // ignore
       }
@@ -37,8 +38,6 @@ class ReportVariablesNotifier extends StateNotifier<ReportVariableModel> {
     String? nim,
     String? prodi,
     String? mitra,
-    String? pembimbing,
-    String? pembimbingLapangan,
     String? namaMahasiswa,
     String? namaPembimbing,
     String? namaPembimbingLapangan,
@@ -49,13 +48,12 @@ class ReportVariablesNotifier extends StateNotifier<ReportVariableModel> {
       nim: nim,
       prodi: prodi,
       mitra: mitra,
-      pembimbing: pembimbing,
-      pembimbingLapangan: pembimbingLapangan,
       namaMahasiswa: namaMahasiswa,
       namaPembimbing: namaPembimbing,
       namaPembimbingLapangan: namaPembimbingLapangan,
       customTemplatePath: customTemplatePath,
     );
+    print('[ReportVars] Updated: nama="${state.nama}", namaMahasiswa="${state.namaMahasiswa}", namaPembimbing="${state.namaPembimbing}", namaPembimbingLapangan="${state.namaPembimbingLapangan}"');
   }
 
   void setCustomTemplatePath(String? path) {

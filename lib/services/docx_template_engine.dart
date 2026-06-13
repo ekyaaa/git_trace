@@ -15,219 +15,107 @@ class DocxTemplateEngine {
     final archive = ZipDecoder().decodeBytes(templateBytes);
     final newArchive = Archive();
 
-    XmlDocument? documentXml;
+    String? rawXmlString;
 
     for (int i = 0; i < archive.files.length; i++) {
       final file = archive.files[i];
       if (file.name == 'word/document.xml') {
-        final xmlString = utf8.decode(file.content as List<int>);
-        documentXml = XmlDocument.parse(xmlString);
+        rawXmlString = utf8.decode(file.content as List<int>);
       } else {
         newArchive.addFile(file);
       }
     }
 
-    if (documentXml == null) {
+    if (rawXmlString == null) {
       throw Exception('word/document.xml not found in template');
     }
 
+    print('[DocxEngine] ====== DOCX GENERATION START ======');
+    print('[DocxEngine] Template bytes: ${templateBytes.length}');
+    print('[DocxEngine] Archive files: ${archive.files.length}');
     print('[DocxEngine] tableRows count: ${tableRows.length}');
+    print('[DocxEngine] variables: $variables');
+
     if (tableRows.isNotEmpty) {
-      print('[DocxEngine] first row: dayDate="${tableRows.first.dayDate}", checkIn="${tableRows.first.checkIn}", checkOut="${tableRows.first.checkOut}", kegiatan="${tableRows.first.kegiatan}"');
+      rawXmlString = _replaceTableRowsInRawXml(rawXmlString, tableRows);
     }
 
-    _replaceTableRows(documentXml, tableRows);
-    _replaceAllVariables(documentXml, variables);
+    rawXmlString = _replaceVariablesInRawXml(rawXmlString, variables);
 
-    final finalXml = documentXml.toXmlString(pretty: false);
+    print('[DocxEngine] Final XML length: ${rawXmlString.length}');
 
-    final newDocBytes = Uint8List.fromList(utf8.encode(finalXml));
+    final remainingPlaceholders = RegExp(r'\{\{.*?\}\}').allMatches(rawXmlString).map((m) => m.group(0)).toSet();
+    print('[DocxEngine] Remaining placeholders: ${remainingPlaceholders.isEmpty ? "NONE" : remainingPlaceholders}');
+
+    final hasMahasiswa = rawXmlString.contains('Mahasiswa,');
+    final hasMengetahui = rawXmlString.contains('Mengetahui,');
+    final hasDosenPembimbing = rawXmlString.contains('Dosen Pembimbing,');
+    final hasPembimbingLapangan = rawXmlString.contains('Pembimbing Lapangan,');
+    print('[DocxEngine] Signature labels: Mahasiswa=$hasMahasiswa, Mengetahui=$hasMengetahui, DosenPembimbing=$hasDosenPembimbing, PembimbingLapangan=$hasPembimbingLapangan');
+
+    final newDocBytes = Uint8List.fromList(utf8.encode(rawXmlString));
     newArchive.addFile(ArchiveFile('word/document.xml', newDocBytes.length, newDocBytes));
 
     final encoded = ZipEncoder().encode(newArchive);
     if (encoded == null) {
       throw Exception('Failed to encode docx archive');
     }
+    print('[DocxEngine] Output ZIP size: ${encoded.length}');
+    print('[DocxEngine] ====== DOCX GENERATION END ======');
     return Uint8List.fromList(encoded);
   }
 
-  static void _replaceAllVariables(XmlDocument doc, Map<String, String> variables) {
-    if (variables.isEmpty) return;
+  static String _replaceVariablesInRawXml(String rawXml, Map<String, String> variables) {
+    if (variables.isEmpty) return rawXml;
 
-    bool anyReplaced = false;
-    final allTElements = doc.findAllElements('t', namespace: _nsW).toList();
-    for (final tElement in allTElements) {
-      if (_replaceInTextNode(tElement, variables)) {
-        anyReplaced = true;
-      }
-    }
+    var result = rawXml;
+    int totalReplacements = 0;
 
-    if (!anyReplaced) {
-      _replaceAllVariablesByLabel(doc, variables);
-    }
-  }
-
-  static void _replaceAllVariablesByLabel(XmlDocument doc, Map<String, String> variables) {
-    final allTables = doc.findAllElements('tbl', namespace: _nsW).toList();
-    if (allTables.isEmpty) return;
-
-    final headerTable = allTables.first;
-    final rows = headerTable.findAllElements('tr', namespace: _nsW).toList();
-
-    final labelMap = <String, String>{
-      'nama': 'nama',
-      'nim': 'nim',
-      'program studi': 'prodi',
-      'nama mitra industri': 'mitra',
-      'dosen pembimbing': 'pembimbing',
-      'pembimbing lapangan': 'pembimbing_lapangan',
-    };
-
-    for (final row in rows) {
-      final cells = row.findAllElements('tc', namespace: _nsW).toList();
-      if (cells.length < 2) continue;
-
-      final labelCell = cells[0];
-      final labelTElements = labelCell.descendants
-          .whereType<XmlElement>()
-          .where((e) => e.name.local == 't')
-          .toList();
-      if (labelTElements.isEmpty) continue;
-
-      final labelText = labelTElements.map((e) => e.innerText).join('').toLowerCase().trim();
-
-      String? varKey;
-      for (final entry in labelMap.entries) {
-        if (labelText.contains(entry.key)) {
-          varKey = entry.value;
-          break;
-        }
-      }
-
-      if (varKey == null || !variables.containsKey(varKey)) continue;
-      if (variables[varKey]!.isEmpty) continue;
-
-      final valueCell = cells[1];
-      final valueTElements = valueCell.descendants
-          .whereType<XmlElement>()
-          .where((e) => e.name.local == 't')
-          .toList();
-
-      if (valueTElements.isNotEmpty) {
-        valueTElements.first.innerText = variables[varKey]!;
-        for (int i = 1; i < valueTElements.length; i++) {
-          valueTElements[i].innerText = '';
+    for (final entry in variables.entries) {
+      final placeholder = '{{${entry.key}}}';
+      if (result.contains(placeholder)) {
+        final before = result;
+        result = result.replaceAll(placeholder, entry.value);
+        if (result != before) {
+          totalReplacements++;
+          print('[DocxEngine]   REPLACE "$placeholder" -> "${entry.value}"');
         }
       }
     }
+
+    print('[DocxEngine] Replaced $totalReplacements variable groups');
+
+    if (result.contains('{{nama_mahasiswa}}') || result.contains('{{nama_pembimbing}}')) {
+      print('[DocxEngine] WARNING: Signature placeholders still present after replacement!');
+    }
+
+    return result;
   }
 
-  static bool _replaceInTextNode(XmlElement tElement, Map<String, String> variables) {
-    final value = tElement.innerText;
-    if (value.isEmpty) return false;
-
-    var text = value;
-    for (final entry in variables.entries) {
-      final placeholder = '{{${entry.key}}}';
-      if (text.contains(placeholder)) {
-        text = text.replaceAll(placeholder, entry.value);
-      }
-    }
-    if (text != value) {
-      tElement.innerText = text;
-      return true;
-    }
-
-    if (text.contains('{{') && !text.contains('}}')) {
-      _replaceSplitPlaceholder(tElement, variables);
-      return true;
-    }
-
-    return false;
-  }
-
-  static void _replaceSplitPlaceholder(XmlElement startElement, Map<String, String> variables) {
-    XmlElement? blockAncestor;
-    var current = startElement;
-    while (current.parent != null) {
-      current = current.parent as XmlElement;
-      final tag = current.name.local;
-      if (tag == 'p' || tag == 'tc') {
-        blockAncestor = current;
-        break;
-      }
-    }
-
-    if (blockAncestor == null) return;
-
-    final tElementsInBlock = blockAncestor.descendants
-        .whereType<XmlElement>()
-        .where((e) => e.name.local == 't')
-        .toList();
-
-    if (tElementsInBlock.length <= 1) return;
-
-    final startIndex = tElementsInBlock.indexOf(startElement);
-    if (startIndex < 0) return;
-
-    var concatenated = '';
-    final elementsUsed = <XmlElement>[];
-
-    for (int i = startIndex; i < tElementsInBlock.length; i++) {
-      concatenated += tElementsInBlock[i].innerText;
-      elementsUsed.add(tElementsInBlock[i]);
-      if (concatenated.contains('}}')) break;
-    }
-
-    var replaced = concatenated;
-    var didReplace = false;
-    for (final entry in variables.entries) {
-      final placeholder = '{{${entry.key}}}';
-      if (replaced.contains(placeholder)) {
-        replaced = replaced.replaceAll(placeholder, entry.value);
-        didReplace = true;
-      }
-    }
-
-    if (!didReplace) return;
-
-    elementsUsed.first.innerText = replaced;
-    for (int i = 1; i < elementsUsed.length; i++) {
-      elementsUsed[i].innerText = '';
-    }
-  }
-
-  static void _replaceTableRows(XmlDocument doc, List<ReportRowModel> tableRows) {
+  static String _replaceTableRowsInRawXml(String rawXml, List<ReportRowModel> tableRows) {
+    final doc = XmlDocument.parse(rawXml);
     final allTables = doc.findAllElements('tbl', namespace: _nsW).toList();
     print('[DocxEngine] Tables found: ${allTables.length}');
+
     if (allTables.length < 2) {
       print('[DocxEngine] WARNING: Less than 2 tables, skipping row replacement');
-      return;
+      return rawXml;
     }
 
     final activityTable = allTables[1];
     final allRows = activityTable.findAllElements('tr', namespace: _nsW).toList();
     print('[DocxEngine] Activity table rows: ${allRows.length}');
-    if (allRows.length < 2) return;
 
-    for (int i = 0; i < allRows.length; i++) {
-      final rowText = _getRowText(allRows[i]);
-      print('[DocxEngine]   Row $i: "${rowText.length > 80 ? rowText.substring(0, 80) : rowText}"');
-    }
+    if (allRows.length < 2) return rawXml;
 
     XmlElement? templateRowElement;
-
     for (int i = 1; i < allRows.length; i++) {
       final rowText = _getRowText(allRows[i]);
       if (rowText.contains('{{')) {
         templateRowElement = allRows[i];
-        print('[DocxEngine] Found template row with {{{{}}}} at index $i');
+        print('[DocxEngine] Found template row at index $i');
         break;
       }
-    }
-
-    if (templateRowElement == null) {
-      print('[DocxEngine] No template row with {{{{}}}}, will use _buildEmptyRow');
     }
 
     for (int i = allRows.length - 1; i >= 1; i--) {
@@ -237,8 +125,8 @@ class DocxTemplateEngine {
 
     if (templateRowElement != null) {
       print('[DocxEngine] Adding ${tableRows.length} rows from template');
-      for (int i = 0; i < tableRows.length; i++) {
-        final newRow = _buildRowFromTemplate(templateRowElement, tableRows[i]);
+      for (final rowData in tableRows) {
+        final newRow = _buildRowFromTemplate(templateRowElement, rowData);
         activityTable.children.add(newRow);
       }
     } else if (allRows.isNotEmpty) {
@@ -250,16 +138,34 @@ class DocxTemplateEngine {
       }
     }
 
-    final finalRows = activityTable.findAllElements('tr', namespace: _nsW).toList();
-    print('[DocxEngine] Final activity table rows: ${finalRows.length}');
-    if (finalRows.length > 1) {
-      final firstDataRowT = finalRows[1].descendants
-          .whereType<XmlElement>()
-          .where((e) => e.name.local == 't')
-          .toList();
-      final firstRowText = firstDataRowT.map((t) => t.innerText).join(' | ');
-      print('[DocxEngine] First data row content: "$firstRowText"');
+    final modifiedTableXml = activityTable.toXmlString(pretty: false);
+
+    final origTableStart = rawXml.indexOf('<w:tbl>', rawXml.indexOf('<w:tbl>') + 1);
+    final origTableEnd = rawXml.indexOf('</w:tbl>', origTableStart) + 8;
+
+    if (origTableStart < 0 || origTableEnd <= 8) {
+      print('[DocxEngine] WARNING: Could not find second table boundaries in raw XML, falling back to full serialization');
+      return _serializeWithOriginalNamespaces(rawXml, doc);
     }
+
+    final result = rawXml.substring(0, origTableStart) + modifiedTableXml + rawXml.substring(origTableEnd);
+    print('[DocxEngine] Table splice: replaced ${origTableEnd - origTableStart} chars with ${modifiedTableXml.length} chars');
+    return result;
+  }
+
+  static String _serializeWithOriginalNamespaces(String originalXml, XmlDocument doc) {
+    final serialized = doc.toXmlString(pretty: false);
+
+    final originalDeclEnd = originalXml.indexOf('?>');
+    final serializedDeclEnd = serialized.indexOf('?>');
+
+    if (originalDeclEnd > 0 && serializedDeclEnd > 0) {
+      final originalDecl = originalXml.substring(0, originalDeclEnd + 2);
+      final serializedAfterDecl = serialized.substring(serializedDeclEnd + 2);
+      return originalDecl + serializedAfterDecl;
+    }
+
+    return serialized;
   }
 
   static XmlElement _buildRowFromTemplate(XmlElement templateRow, ReportRowModel rowData) {

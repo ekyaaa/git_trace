@@ -16,12 +16,23 @@ class _ReportVariableFormState extends ConsumerState<ReportVariableForm> {
   late TextEditingController _nimCtrl;
   late TextEditingController _prodiCtrl;
   late TextEditingController _mitraCtrl;
-  late TextEditingController _pembimbingCtrl;
-  late TextEditingController _pembimbingLapanganCtrl;
   late TextEditingController _namaMahasiswaCtrl;
   late TextEditingController _namaPembimbingCtrl;
   late TextEditingController _namaPembimbingLapanganCtrl;
   bool _expanded = false;
+
+  void _autoSave() {
+    ref.read(reportVariablesProvider.notifier).update(
+      nama: _namaCtrl.text,
+      nim: _nimCtrl.text,
+      prodi: _prodiCtrl.text,
+      mitra: _mitraCtrl.text,
+      namaMahasiswa: _namaMahasiswaCtrl.text,
+      namaPembimbing: _namaPembimbingCtrl.text,
+      namaPembimbingLapangan: _namaPembimbingLapanganCtrl.text,
+    );
+    ref.read(reportVariablesProvider.notifier).save();
+  }
 
   @override
   void initState() {
@@ -31,21 +42,32 @@ class _ReportVariableFormState extends ConsumerState<ReportVariableForm> {
     _nimCtrl = TextEditingController(text: vars.nim);
     _prodiCtrl = TextEditingController(text: vars.prodi);
     _mitraCtrl = TextEditingController(text: vars.mitra);
-    _pembimbingCtrl = TextEditingController(text: vars.pembimbing);
-    _pembimbingLapanganCtrl = TextEditingController(text: vars.pembimbingLapangan);
     _namaMahasiswaCtrl = TextEditingController(text: vars.namaMahasiswa);
     _namaPembimbingCtrl = TextEditingController(text: vars.namaPembimbing);
     _namaPembimbingLapanganCtrl = TextEditingController(text: vars.namaPembimbingLapangan);
+
+    _namaCtrl.addListener(_autoSave);
+    _nimCtrl.addListener(_autoSave);
+    _prodiCtrl.addListener(_autoSave);
+    _mitraCtrl.addListener(_autoSave);
+    _namaMahasiswaCtrl.addListener(_autoSave);
+    _namaPembimbingCtrl.addListener(_autoSave);
+    _namaPembimbingLapanganCtrl.addListener(_autoSave);
   }
 
   @override
   void dispose() {
+    _namaCtrl.removeListener(_autoSave);
+    _nimCtrl.removeListener(_autoSave);
+    _prodiCtrl.removeListener(_autoSave);
+    _mitraCtrl.removeListener(_autoSave);
+    _namaMahasiswaCtrl.removeListener(_autoSave);
+    _namaPembimbingCtrl.removeListener(_autoSave);
+    _namaPembimbingLapanganCtrl.removeListener(_autoSave);
     _namaCtrl.dispose();
     _nimCtrl.dispose();
     _prodiCtrl.dispose();
     _mitraCtrl.dispose();
-    _pembimbingCtrl.dispose();
-    _pembimbingLapanganCtrl.dispose();
     _namaMahasiswaCtrl.dispose();
     _namaPembimbingCtrl.dispose();
     _namaPembimbingLapanganCtrl.dispose();
@@ -59,8 +81,6 @@ class _ReportVariableFormState extends ConsumerState<ReportVariableForm> {
       nim: _nimCtrl.text,
       prodi: _prodiCtrl.text,
       mitra: _mitraCtrl.text,
-      pembimbing: _pembimbingCtrl.text,
-      pembimbingLapangan: _pembimbingLapanganCtrl.text,
       namaMahasiswa: _namaMahasiswaCtrl.text,
       namaPembimbing: _namaPembimbingCtrl.text,
       namaPembimbingLapangan: _namaPembimbingLapanganCtrl.text,
@@ -164,10 +184,6 @@ class _ReportVariableFormState extends ConsumerState<ReportVariableForm> {
                   _buildField('Program Studi', _prodiCtrl),
                   const SizedBox(height: 12),
                   _buildField('Nama Mitra Industri', _mitraCtrl),
-                  const SizedBox(height: 12),
-                  _buildField('Dosen Pembimbing', _pembimbingCtrl),
-                  const SizedBox(height: 12),
-                  _buildField('Pembimbing Lapangan', _pembimbingLapanganCtrl),
                   const SizedBox(height: 16),
                   Divider(height: 1, color: colors.surfaceBorder),
                   const SizedBox(height: 16),

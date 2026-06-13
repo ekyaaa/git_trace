@@ -3,8 +3,6 @@ class ReportVariableModel {
   final String nim;
   final String prodi;
   final String mitra;
-  final String pembimbing;
-  final String pembimbingLapangan;
   final String namaMahasiswa;
   final String namaPembimbing;
   final String namaPembimbingLapangan;
@@ -15,8 +13,6 @@ class ReportVariableModel {
     this.nim = '',
     this.prodi = '',
     this.mitra = '',
-    this.pembimbing = '',
-    this.pembimbingLapangan = '',
     this.namaMahasiswa = '',
     this.namaPembimbing = '',
     this.namaPembimbingLapangan = '',
@@ -28,8 +24,6 @@ class ReportVariableModel {
     String? nim,
     String? prodi,
     String? mitra,
-    String? pembimbing,
-    String? pembimbingLapangan,
     String? namaMahasiswa,
     String? namaPembimbing,
     String? namaPembimbingLapangan,
@@ -40,8 +34,6 @@ class ReportVariableModel {
       nim: nim ?? this.nim,
       prodi: prodi ?? this.prodi,
       mitra: mitra ?? this.mitra,
-      pembimbing: pembimbing ?? this.pembimbing,
-      pembimbingLapangan: pembimbingLapangan ?? this.pembimbingLapangan,
       namaMahasiswa: namaMahasiswa ?? this.namaMahasiswa,
       namaPembimbing: namaPembimbing ?? this.namaPembimbing,
       namaPembimbingLapangan: namaPembimbingLapangan ?? this.namaPembimbingLapangan,
@@ -55,8 +47,6 @@ class ReportVariableModel {
       'nim': nim,
       'prodi': prodi,
       'mitra': mitra,
-      'pembimbing': pembimbing,
-      'pembimbingLapangan': pembimbingLapangan,
       'namaMahasiswa': namaMahasiswa,
       'namaPembimbing': namaPembimbing,
       'namaPembimbingLapangan': namaPembimbingLapangan,
@@ -70,8 +60,6 @@ class ReportVariableModel {
       nim: json['nim'] ?? '',
       prodi: json['prodi'] ?? '',
       mitra: json['mitra'] ?? '',
-      pembimbing: json['pembimbing'] ?? '',
-      pembimbingLapangan: json['pembimbingLapangan'] ?? '',
       namaMahasiswa: json['namaMahasiswa'] ?? '',
       namaPembimbing: json['namaPembimbing'] ?? '',
       namaPembimbingLapangan: json['namaPembimbingLapangan'] ?? '',
