@@ -153,6 +153,70 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
       return;
     }
 
+    final effectiveNamaMahasiswa = variables.namaMahasiswa.isNotEmpty ? variables.namaMahasiswa : variables.nama;
+    final effectiveNamaPembimbing = variables.namaPembimbing.isNotEmpty ? variables.namaPembimbing : variables.nama;
+    final effectiveNamaPembimbingLapangan = variables.namaPembimbingLapangan.isNotEmpty ? variables.namaPembimbingLapangan : variables.nama;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Konfirmasi Data Export'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Data Laporan:', style: TextStyle(fontWeight: FontWeight.bold, color: colors.textPrimary)),
+              const SizedBox(height: 4),
+              Text('Nama: ${variables.nama}', style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+              Text('NIM: ${variables.nim}', style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+              Text('Prodi: ${variables.prodi}', style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+              Text('Mitra: ${variables.mitra}', style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+              const SizedBox(height: 12),
+              Text('Tanda Tangan:', style: TextStyle(fontWeight: FontWeight.bold, color: colors.textPrimary)),
+              const SizedBox(height: 4),
+              Text('Nama Mahasiswa: $effectiveNamaMahasiswa', style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+              Text('Dosen Pembimbing: $effectiveNamaPembimbing', style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+              Text('Pembimbing Lapangan: $effectiveNamaPembimbingLapangan', style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+              const SizedBox(height: 12),
+              if (variables.namaMahasiswa.isEmpty || variables.namaPembimbing.isEmpty || variables.namaPembimbingLapangan.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: colors.accentOrange.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, size: 14, color: colors.accentOrange),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Nama TTD kosong, otomatis menggunakan nama "${variables.nama}"',
+                          style: TextStyle(fontSize: 11, color: colors.accentOrange),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Export'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
     await ref.read(reportVariablesProvider.notifier).saveImmediate();
 
     String? outputPath = await FilePicker.platform.getDirectoryPath(
@@ -168,15 +232,27 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     setState(() => _exporting = true);
     final calState = ref.read(calendarStateProvider);
 
-    final filePath = await DocxExporter.exportReport(
-      commits: commits,
-      month: calState.month,
-      year: calState.year,
-      outputPath: outputPath,
-      variables: variables,
-      customTemplatePath: variables.customTemplatePath,
-      mergeDuplicates: _mergeDuplicates,
+    final effectiveVariables = variables.copyWith(
+      namaMahasiswa: effectiveNamaMahasiswa,
+      namaPembimbing: effectiveNamaPembimbing,
+      namaPembimbingLapangan: effectiveNamaPembimbingLapangan,
     );
+
+    String? filePath;
+    String? errorMsg;
+    try {
+      filePath = await DocxExporter.exportReport(
+        commits: commits,
+        month: calState.month,
+        year: calState.year,
+        outputPath: outputPath,
+        variables: effectiveVariables,
+        customTemplatePath: variables.customTemplatePath,
+        mergeDuplicates: _mergeDuplicates,
+      );
+    } catch (e) {
+      errorMsg = e.toString();
+    }
 
     setState(() {
       _exporting = false;
@@ -188,7 +264,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
         SnackBar(
           content: Text(filePath != null
               ? 'Berhasil! File disimpan di:\n$filePath'
-              : 'Gagal membuat file Word.'),
+              : 'Gagal membuat file Word.${errorMsg != null ? '\nError: $errorMsg' : ''}'),
           backgroundColor:
               filePath != null ? colors.accentGreen : colors.accentRed,
           duration: const Duration(seconds: 6),
@@ -196,7 +272,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
               ? SnackBarAction(
                   label: '📂 Buka Folder',
                   textColor: Colors.white,
-                  onPressed: () => _openFileInManager(filePath),
+                  onPressed: () => _openFileInManager(filePath!),
                 )
               : null,
         ),

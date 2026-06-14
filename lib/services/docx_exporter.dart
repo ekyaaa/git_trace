@@ -46,11 +46,12 @@ class DocxExporter {
         'pembimbing': variables.namaPembimbing,
         'pembimbing_lapangan': variables.namaPembimbingLapangan,
         'nama_mahasiswa': variables.namaMahasiswa.isNotEmpty ? variables.namaMahasiswa : variables.nama,
-        'nama_pembimbing': variables.namaPembimbing,
-        'nama_pembimbing_lapangan': variables.namaPembimbingLapangan,
+        'nama_pembimbing': variables.namaPembimbing.isNotEmpty ? variables.namaPembimbing : variables.nama,
+        'nama_pembimbing_lapangan': variables.namaPembimbingLapangan.isNotEmpty ? variables.namaPembimbingLapangan : variables.nama,
         'bulan': month.toString().padLeft(2, '0'),
         'tahun': year.toString(),
       };
+      print('[DocxExport] Raw model: nama="${variables.nama}", namaMahasiswa="${variables.namaMahasiswa}", namaPembimbing="${variables.namaPembimbing}", namaPembimbingLapangan="${variables.namaPembimbingLapangan}"');
       print('[DocxExport] variableMap: nama_mahasiswa="${variableMap['nama_mahasiswa']}", nama_pembimbing="${variableMap['nama_pembimbing']}", nama_pembimbing_lapangan="${variableMap['nama_pembimbing_lapangan']}"');
 
       // 4. Generate docx
@@ -68,9 +69,9 @@ class DocxExporter {
 
       return filePath;
     } catch (e, stack) {
-      print('DOCX export error: $e');
-      print('Stack: $stack');
-      return null;
+      print('[DocxExport] ERROR: $e');
+      print('[DocxExport] Stack: $stack');
+      rethrow;
     }
   }
 

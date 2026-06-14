@@ -36,21 +36,6 @@ class DocxTemplateEngine {
     print('[DocxEngine] tableRows count: ${tableRows.length}');
     print('[DocxEngine] variables: $variables');
 
-    final requiredPlaceholders = ['{{nama}}', '{{nim}}', '{{prodi}}', '{{mitra}}', '{{pembimbing}}', '{{pembimbing_lapangan}}', '{{nama_mahasiswa}}', '{{nama_pembimbing}}', '{{nama_pembimbing_lapangan}}'];
-    final foundInTemplate = <String>[];
-    final missingInTemplate = <String>[];
-    for (final ph in requiredPlaceholders) {
-      if (rawXmlString!.contains(ph)) {
-        foundInTemplate.add(ph);
-      } else {
-        missingInTemplate.add(ph);
-      }
-    }
-    print('[DocxEngine] Placeholders found in template: ${foundInTemplate.length}/${requiredPlaceholders.length}');
-    if (missingInTemplate.isNotEmpty) {
-      print('[DocxEngine] WARNING: Missing placeholders in template: $missingInTemplate');
-    }
-
     if (tableRows.isNotEmpty) {
       rawXmlString = _replaceTableRowsInRawXml(rawXmlString, tableRows);
     }
@@ -89,21 +74,18 @@ class DocxTemplateEngine {
     for (final entry in variables.entries) {
       final placeholder = '{{${entry.key}}}';
       if (result.contains(placeholder)) {
-        final before = result;
         result = result.replaceAll(placeholder, entry.value);
-        if (result != before) {
-          totalReplacements++;
-          print('[DocxEngine]   REPLACE "$placeholder" -> "${entry.value}"');
-        }
+        totalReplacements++;
+        print('[DocxEngine]   REPLACE "$placeholder" -> "${entry.value.length > 40 ? entry.value.substring(0, 40) + "..." : entry.value}"');
       }
     }
 
-    final remainingPlaceholders = RegExp(r'\{\{.*?\}\}').allMatches(result).map((m) => m.group(0)).toSet();
-    if (remainingPlaceholders.isNotEmpty) {
-      print('[DocxEngine] $totalReplacements raw replacements done, but remaining: $remainingPlaceholders');
+    print('[DocxEngine] Replaced $totalReplacements variable groups');
+
+    final remaining = RegExp(r'\{\{.*?\}\}').allMatches(result).map((m) => m.group(0)).toSet();
+    if (remaining.isNotEmpty) {
+      print('[DocxEngine] Remaining after raw replace: $remaining');
       result = _replaceSplitPlaceholdersInRawXml(result, variables);
-    } else {
-      print('[DocxEngine] Replaced $totalReplacements variable groups (all via raw)');
     }
 
     if (result.contains('{{nama_mahasiswa}}') || result.contains('{{nama_pembimbing}}')) {
@@ -221,24 +203,25 @@ class DocxTemplateEngine {
       }
     }
 
-    print('[DocxEngine] Activity table modified in-place in DOM');
+    final modifiedTableXml = activityTable.toXmlString(pretty: false);
 
-    return _serializeWithOriginalNamespaces(rawXml, doc);
-  }
+    final origTableStart = rawXml.indexOf('<w:tbl>', rawXml.indexOf('<w:tbl>') + 1);
+    final origTableEnd = rawXml.indexOf('</w:tbl>', origTableStart) + 8;
 
-  static String _serializeWithOriginalNamespaces(String originalXml, XmlDocument doc) {
-    final serialized = doc.toXmlString(pretty: false);
-
-    final originalDeclEnd = originalXml.indexOf('?>');
-    final serializedDeclEnd = serialized.indexOf('?>');
-
-    if (originalDeclEnd > 0 && serializedDeclEnd > 0) {
-      final originalDecl = originalXml.substring(0, originalDeclEnd + 2);
-      final serializedAfterDecl = serialized.substring(serializedDeclEnd + 2);
-      return originalDecl + serializedAfterDecl;
+    if (origTableStart < 0 || origTableEnd <= 8) {
+      print('[DocxEngine] WARNING: Could not find second table boundaries in raw XML, falling back to full serialization');
+      final serialized = doc.toXmlString(pretty: false);
+      final originalDeclEnd = rawXml.indexOf('?>');
+      final serializedDeclEnd = serialized.indexOf('?>');
+      if (originalDeclEnd > 0 && serializedDeclEnd > 0) {
+        return rawXml.substring(0, originalDeclEnd + 2) + serialized.substring(serializedDeclEnd + 2);
+      }
+      return serialized;
     }
 
-    return serialized;
+    final result = rawXml.substring(0, origTableStart) + modifiedTableXml + rawXml.substring(origTableEnd);
+    print('[DocxEngine] Table splice: replaced ${origTableEnd - origTableStart} chars with ${modifiedTableXml.length} chars');
+    return result;
   }
 
   static XmlElement _buildRowFromTemplate(XmlElement templateRow, ReportRowModel rowData) {
