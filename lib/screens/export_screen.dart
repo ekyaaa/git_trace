@@ -153,6 +153,8 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
       return;
     }
 
+    await ref.read(reportVariablesProvider.notifier).saveImmediate();
+
     String? outputPath = await FilePicker.platform.getDirectoryPath(
       dialogTitle: 'Pilih Folder Simpan',
     );

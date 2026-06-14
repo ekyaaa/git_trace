@@ -36,6 +36,21 @@ class DocxTemplateEngine {
     print('[DocxEngine] tableRows count: ${tableRows.length}');
     print('[DocxEngine] variables: $variables');
 
+    final requiredPlaceholders = ['{{nama}}', '{{nim}}', '{{prodi}}', '{{mitra}}', '{{pembimbing}}', '{{pembimbing_lapangan}}', '{{nama_mahasiswa}}', '{{nama_pembimbing}}', '{{nama_pembimbing_lapangan}}'];
+    final foundInTemplate = <String>[];
+    final missingInTemplate = <String>[];
+    for (final ph in requiredPlaceholders) {
+      if (rawXmlString!.contains(ph)) {
+        foundInTemplate.add(ph);
+      } else {
+        missingInTemplate.add(ph);
+      }
+    }
+    print('[DocxEngine] Placeholders found in template: ${foundInTemplate.length}/${requiredPlaceholders.length}');
+    if (missingInTemplate.isNotEmpty) {
+      print('[DocxEngine] WARNING: Missing placeholders in template: $missingInTemplate');
+    }
+
     if (tableRows.isNotEmpty) {
       rawXmlString = _replaceTableRowsInRawXml(rawXmlString, tableRows);
     }
@@ -83,13 +98,81 @@ class DocxTemplateEngine {
       }
     }
 
-    print('[DocxEngine] Replaced $totalReplacements variable groups');
+    final remainingPlaceholders = RegExp(r'\{\{.*?\}\}').allMatches(result).map((m) => m.group(0)).toSet();
+    if (remainingPlaceholders.isNotEmpty) {
+      print('[DocxEngine] $totalReplacements raw replacements done, but remaining: $remainingPlaceholders');
+      result = _replaceSplitPlaceholdersInRawXml(result, variables);
+    } else {
+      print('[DocxEngine] Replaced $totalReplacements variable groups (all via raw)');
+    }
 
     if (result.contains('{{nama_mahasiswa}}') || result.contains('{{nama_pembimbing}}')) {
       print('[DocxEngine] WARNING: Signature placeholders still present after replacement!');
     }
 
     return result;
+  }
+
+  static String _replaceSplitPlaceholdersInRawXml(String rawXml, Map<String, String> variables) {
+    final doc = XmlDocument.parse(rawXml);
+    final allT = doc.findAllElements('t', namespace: _nsW).toList();
+    int splitReplacements = 0;
+
+    for (int i = 0; i < allT.length; i++) {
+      final text = allT[i].innerText;
+      if (!text.contains('{{') || text.contains('}}')) continue;
+
+      XmlElement? blockAncestor;
+      var current = allT[i];
+      while (current.parent != null) {
+        current = current.parent as XmlElement;
+        if (current.name.local == 'p' || current.name.local == 'tc') {
+          blockAncestor = current;
+          break;
+        }
+      }
+      if (blockAncestor == null) continue;
+
+      final tInBlock = blockAncestor.descendants
+          .whereType<XmlElement>()
+          .where((e) => e.name.local == 't')
+          .toList();
+      if (tInBlock.length <= 1) continue;
+
+      final startIdx = tInBlock.indexOf(allT[i]);
+      if (startIdx < 0) continue;
+
+      var concatenated = '';
+      final used = <XmlElement>[];
+      for (int j = startIdx; j < tInBlock.length; j++) {
+        concatenated += tInBlock[j].innerText;
+        used.add(tInBlock[j]);
+        if (concatenated.contains('}}')) break;
+      }
+
+      var replaced = concatenated;
+      var didReplace = false;
+      for (final entry in variables.entries) {
+        final ph = '{{${entry.key}}}';
+        if (replaced.contains(ph)) {
+          replaced = replaced.replaceAll(ph, entry.value);
+          didReplace = true;
+        }
+      }
+
+      if (didReplace) {
+        used.first.innerText = replaced;
+        for (int k = 1; k < used.length; k++) {
+          used[k].innerText = '';
+        }
+        splitReplacements++;
+        print('[DocxEngine]   SPLIT REPLACE via ${used.length} <w:t> elements -> "${replaced.trim()}"');
+      }
+    }
+
+    print('[DocxEngine] Split-placeholder replacements: $splitReplacements');
+    if (splitReplacements == 0) return rawXml;
+    return doc.toXmlString(pretty: false);
   }
 
   static String _replaceTableRowsInRawXml(String rawXml, List<ReportRowModel> tableRows) {
@@ -138,19 +221,9 @@ class DocxTemplateEngine {
       }
     }
 
-    final modifiedTableXml = activityTable.toXmlString(pretty: false);
+    print('[DocxEngine] Activity table modified in-place in DOM');
 
-    final origTableStart = rawXml.indexOf('<w:tbl>', rawXml.indexOf('<w:tbl>') + 1);
-    final origTableEnd = rawXml.indexOf('</w:tbl>', origTableStart) + 8;
-
-    if (origTableStart < 0 || origTableEnd <= 8) {
-      print('[DocxEngine] WARNING: Could not find second table boundaries in raw XML, falling back to full serialization');
-      return _serializeWithOriginalNamespaces(rawXml, doc);
-    }
-
-    final result = rawXml.substring(0, origTableStart) + modifiedTableXml + rawXml.substring(origTableEnd);
-    print('[DocxEngine] Table splice: replaced ${origTableEnd - origTableStart} chars with ${modifiedTableXml.length} chars');
-    return result;
+    return _serializeWithOriginalNamespaces(rawXml, doc);
   }
 
   static String _serializeWithOriginalNamespaces(String originalXml, XmlDocument doc) {

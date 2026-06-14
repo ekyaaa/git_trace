@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants.dart';
 import '../../core/theme_colors.dart';
+import '../../models/report_variable_model.dart';
 import '../../providers/report_variables_provider.dart';
 
 class ReportVariableForm extends ConsumerStatefulWidget {
@@ -32,6 +33,16 @@ class _ReportVariableFormState extends ConsumerState<ReportVariableForm> {
       namaPembimbingLapangan: _namaPembimbingLapanganCtrl.text,
     );
     ref.read(reportVariablesProvider.notifier).save();
+  }
+
+  void _syncControllersFromProvider(ReportVariableModel vars) {
+    if (_namaCtrl.text.isEmpty && vars.nama.isNotEmpty) _namaCtrl.text = vars.nama;
+    if (_nimCtrl.text.isEmpty && vars.nim.isNotEmpty) _nimCtrl.text = vars.nim;
+    if (_prodiCtrl.text.isEmpty && vars.prodi.isNotEmpty) _prodiCtrl.text = vars.prodi;
+    if (_mitraCtrl.text.isEmpty && vars.mitra.isNotEmpty) _mitraCtrl.text = vars.mitra;
+    if (_namaMahasiswaCtrl.text.isEmpty && vars.namaMahasiswa.isNotEmpty) _namaMahasiswaCtrl.text = vars.namaMahasiswa;
+    if (_namaPembimbingCtrl.text.isEmpty && vars.namaPembimbing.isNotEmpty) _namaPembimbingCtrl.text = vars.namaPembimbing;
+    if (_namaPembimbingLapanganCtrl.text.isEmpty && vars.namaPembimbingLapangan.isNotEmpty) _namaPembimbingLapanganCtrl.text = vars.namaPembimbingLapangan;
   }
 
   @override
@@ -85,7 +96,7 @@ class _ReportVariableFormState extends ConsumerState<ReportVariableForm> {
       namaPembimbing: _namaPembimbingCtrl.text,
       namaPembimbingLapangan: _namaPembimbingLapanganCtrl.text,
     );
-    ref.read(reportVariablesProvider.notifier).save();
+    ref.read(reportVariablesProvider.notifier).saveImmediate();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Data instansi berhasil disimpan.'),
@@ -98,6 +109,16 @@ class _ReportVariableFormState extends ConsumerState<ReportVariableForm> {
   @override
   Widget build(BuildContext context) {
     final colors = ThemeColors.of(context);
+
+    ref.listen<ReportVariableModel>(reportVariablesProvider, (prev, next) {
+      if (prev != null) {
+        final wasEmpty = prev.nama.isEmpty && prev.nim.isEmpty;
+        final nowHasData = next.nama.isNotEmpty || next.nim.isNotEmpty;
+        if (wasEmpty && nowHasData) {
+          _syncControllersFromProvider(next);
+        }
+      }
+    });
 
     return Container(
       margin: const EdgeInsets.symmetric(
