@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/constants.dart';
+import '../core/theme_colors.dart';
 import '../models/commit_model.dart';
 import '../providers/commits_provider.dart';
 import '../providers/calendar_provider.dart';
 import '../providers/work_hours_provider.dart';
+import '../providers/selected_repos_provider.dart';
 import '../widgets/calendar/month_calendar.dart';
 import '../widgets/calendar/month_navigator.dart';
 import '../widgets/work_hours/bulk_hour_dialog.dart';
+import '../widgets/animations/fade_in.dart';
+import '../widgets/animations/scale_on_hover.dart';
 
 class CalendarScreen extends ConsumerStatefulWidget {
   const CalendarScreen({super.key});
@@ -22,6 +26,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final calState = ref.watch(calendarStateProvider);
     final commits = ref.watch(commitsProvider);
     final workHours = ref.watch(workHoursProvider);
+    final selectedReposCount = ref.watch(selectedReposProvider).length;
 
     final commitsByDate = <DateTime, List<CommitModel>>{};
     commits.whenData((list) {
@@ -32,117 +37,175 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
     final totalCommits = commits.valueOrNull?.length ?? 0;
     final activeDays = commitsByDate.length;
-    final repoCount =
-        commits.valueOrNull?.map((c) => c.repoName).toSet().length ?? 0;
+
+    int totalHariMasuk = 0;
+    final daysInMonth = DateTime(calState.year, calState.month + 1, 0).day;
+    for (int day = 1; day <= daysInMonth; day++) {
+      final date = DateTime(calState.year, calState.month, day);
+      final isWeekend = date.weekday == DateTime.saturday || date.weekday == DateTime.sunday;
+      final hasCommits = commitsByDate.containsKey(date);
+      if (!isWeekend || hasCommits) {
+        totalHariMasuk++;
+      }
+    }
 
     return Column(
       children: [
-        _buildTopBar(calState, totalCommits, activeDays, repoCount, workHours),
+        _buildTopBar(
+          calState: calState,
+          totalCommits: totalCommits,
+          selectedReposCount: selectedReposCount,
+          totalHariMasuk: totalHariMasuk,
+          activeDays: activeDays,
+        ),
         Expanded(child: _buildCalendar(commits, calState, commitsByDate, workHours)),
       ],
     );
   }
 
-  Widget _buildTopBar(CalendarState calState, int totalCommits, int activeDays,
-      int repoCount, Map workHours) {
+  Widget _buildTopBar({
+    required CalendarState calState,
+    required int totalCommits,
+    required int selectedReposCount,
+    required int totalHariMasuk,
+    required int activeDays,
+  }) {
+    final colors = ThemeColors.of(context);
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.surfaceBorder)),
+      padding: const EdgeInsets.fromLTRB(AppConstants.spacingXXLarge, AppConstants.spacingLarge, AppConstants.spacingXXLarge, AppConstants.spacingMedium),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        border: Border(
+          bottom: BorderSide(
+            color: colors.surfaceBorder.withValues(alpha: 0.5),
+          ),
+        ),
       ),
       child: Column(children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            MonthNavigator(
-              month: calState.month,
-              year: calState.year,
-              onPrevious: () {
-                ref.read(calendarStateProvider.notifier).previousMonth();
-                _reloadData();
-              },
-              onNext: () {
-                ref.read(calendarStateProvider.notifier).nextMonth();
-                _reloadData();
-              },
+            FadeIn(
+              child: MonthNavigator(
+                month: calState.month,
+                year: calState.year,
+                onPrevious: () {
+                  ref.read(calendarStateProvider.notifier).previousMonth();
+                  _reloadData();
+                },
+                onNext: () {
+                  ref.read(calendarStateProvider.notifier).nextMonth();
+                  _reloadData();
+                },
+              ),
             ),
             Row(children: [
-              _chip(Icons.schedule, 'Atur Jam Kerja', _showBulkHoursDialog),
+              FadeIn(
+                delay: const Duration(milliseconds: 50),
+                child: _chip(Icons.schedule, 'Atur Jam Kerja', _showBulkHoursDialog),
+              ),
               const SizedBox(width: 8),
-              _chip(Icons.refresh, 'Refresh', () {
-                ref.read(commitsProvider.notifier).loadCommits();
-              }),
+              FadeIn(
+                delay: const Duration(milliseconds: 100),
+                child: _chip(Icons.refresh, 'Refresh', () {
+                  ref.read(commitsProvider.notifier).loadCommits();
+                }),
+              ),
             ]),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         Row(children: [
-          _stat(Icons.commit, '$totalCommits', 'Commit', AppColors.accentBlue),
-          const SizedBox(width: 16),
-          _stat(Icons.calendar_today, '$activeDays', 'Hari Aktif',
-              AppColors.accentGreen),
-          const SizedBox(width: 16),
-          _stat(Icons.source, '$repoCount', 'Repo', AppColors.accentPurple),
-          const SizedBox(width: 16),
-          _stat(Icons.access_time, '${workHours.length}', 'Jam Diisi',
-              AppColors.accentOrange),
+          _stat(Icons.commit, '$totalCommits', 'Total Commit', colors.accentBlue),
+          const SizedBox(width: 20),
+          _stat(Icons.source, '$selectedReposCount', 'Repo Dipilih', colors.accentPurple),
+          const SizedBox(width: 20),
+          _stat(Icons.calendar_today, '$totalHariMasuk', 'Hari Kerja', colors.accentGreen),
+          const SizedBox(width: 20),
+          _stat(Icons.check_circle_outline, '$activeDays', 'Hari Ada Kegiatan', colors.accentOrange),
         ]),
       ]),
     );
   }
 
   Widget _chip(IconData icon, String label, VoidCallback onTap) {
-    return InkWell(
+    final colors = ThemeColors.of(context);
+
+    return ScaleOnHover(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: AppColors.surfaceBorder.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.surfaceBorder),
+          color: colors.surfaceBorder.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+          border: Border.all(
+            color: colors.surfaceBorder.withValues(alpha: 0.5),
+          ),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 14, color: AppColors.textSecondary),
+          Icon(icon, size: 14, color: colors.textSecondary),
           const SizedBox(width: 6),
           Text(label,
-              style:
-                  const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              style: TextStyle(
+                fontSize: 12,
+                color: colors.textSecondary,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.1,
+              )),
         ]),
       ),
     );
   }
 
   Widget _stat(IconData icon, String value, String label, Color color) {
-    return Row(mainAxisSize: MainAxisSize.min, children: [
-      Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(6),
+    final colors = ThemeColors.of(context);
+
+    return FadeIn(
+      delay: const Duration(milliseconds: 60),
+      slideOffset: const Offset(0, 8),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(AppConstants.radiusSmall - 2),
+            border: Border.all(
+              color: color.withValues(alpha: 0.2),
+              width: 0.5,
+            ),
+          ),
+          child: Icon(icon, size: 14, color: color),
         ),
-        child: Icon(icon, size: 13, color: color),
-      ),
-      const SizedBox(width: 6),
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(value,
-            style: const TextStyle(
-                fontSize: 14,
+        const SizedBox(width: 8),
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(value,
+              style: TextStyle(
+                fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary)),
-        Text(label,
-            style: const TextStyle(fontSize: 9, color: AppColors.textTertiary)),
+                color: colors.textPrimary,
+                letterSpacing: -0.2,
+              )),
+          Text(label,
+              style: TextStyle(
+                fontSize: 10,
+                color: colors.textTertiary,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.2,
+              )),
+        ]),
       ]),
-    ]);
+    );
   }
 
   Widget _buildCalendar(AsyncValue<List<CommitModel>> commits,
       CalendarState calState, Map<DateTime, List<CommitModel>> commitsByDate,
       Map workHours) {
+    final colors = ThemeColors.of(context);
+
     return commits.when(
-      loading: () => const Center(
-        child: CircularProgressIndicator(color: AppColors.accentBlue, strokeWidth: 2),
+      loading: () => Center(
+        child: CircularProgressIndicator(color: colors.accentBlue, strokeWidth: 2),
       ),
       error: (e, _) => Center(child: Text('Error: $e')),
       data: (_) => MonthCalendar(

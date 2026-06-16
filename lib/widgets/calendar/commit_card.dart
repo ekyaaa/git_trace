@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
+import '../../core/theme_colors.dart';
 import '../../models/commit_model.dart';
 
 class CommitCard extends StatefulWidget {
@@ -21,28 +22,41 @@ class _CommitCardState extends State<CommitCard> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = ThemeColors.of(context);
+
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
+      cursor: SystemMouseCursors.click,
       child: Tooltip(
         message:
             '[${widget.commit.repoName}] ${widget.commit.subject}\n${widget.commit.timeString} — ${widget.commit.authorName}',
         waitDuration: const Duration(milliseconds: 400),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: AppConstants.animDurationFast,
+          curve: AppCurves.easeOutExpo,
           margin: const EdgeInsets.only(bottom: 2),
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
           decoration: BoxDecoration(
             color: _hovered
-                ? widget.color.withValues(alpha: 0.2)
-                : widget.color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(4),
+                ? widget.color.withValues(alpha: 0.18)
+                : widget.color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(6),
             border: Border(
               left: BorderSide(
                 color: widget.color,
                 width: 2.5,
               ),
             ),
+            boxShadow: _hovered
+                ? [
+                    BoxShadow(
+                      color: widget.color.withValues(alpha: 0.08),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ]
+                : null,
           ),
           child: Row(
             children: [
@@ -50,18 +64,22 @@ class _CommitCardState extends State<CommitCard> {
                 widget.commit.timeString,
                 style: TextStyle(
                   fontSize: 9,
-                  fontWeight: FontWeight.w600,
-                  color: widget.color,
+                  fontWeight: FontWeight.w700,
+                  color: widget.color.withValues(alpha: 0.9),
                   fontFeatures: const [FontFeature.tabularFigures()],
+                  letterSpacing: 0.2,
                 ),
               ),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
                   widget.commit.subject,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 10,
-                    color: AppColors.textPrimary,
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.1,
+                    height: 1.2,
                   ),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,

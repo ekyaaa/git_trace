@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants.dart';
+import '../../core/theme_colors.dart';
 
 class MonthNavigator extends StatelessWidget {
   final int month;
@@ -20,6 +21,7 @@ class MonthNavigator extends StatelessWidget {
   Widget build(BuildContext context) {
     final date = DateTime(year, month);
     final monthName = DateFormat('MMMM yyyy', 'id_ID').format(date);
+    final colors = ThemeColors.of(context);
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -27,18 +29,22 @@ class MonthNavigator extends StatelessWidget {
         _NavButton(icon: Icons.chevron_left, onTap: onPrevious),
         const SizedBox(width: 8),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           decoration: BoxDecoration(
-            color: AppColors.surfaceLight,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.surfaceBorder),
+            color: colors.surfaceLight,
+            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+            border: Border.all(
+              color: colors.surfaceBorder.withValues(alpha: 0.6),
+            ),
+            boxShadow: colors.subtleShadow,
           ),
           child: Text(
             monthName.substring(0, 1).toUpperCase() + monthName.substring(1),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w700,
+              color: colors.textPrimary,
+              letterSpacing: -0.2,
             ),
           ),
         ),
@@ -61,29 +67,42 @@ class _NavButton extends StatefulWidget {
 
 class _NavButtonState extends State<_NavButton> {
   bool _hovered = false;
+  bool _pressed = false;
 
   @override
   Widget build(BuildContext context) {
+    final colors = ThemeColors.of(context);
+
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
+      cursor: SystemMouseCursors.click,
       child: GestureDetector(
+        onTapDown: (_) => setState(() => _pressed = true),
+        onTapUp: (_) => setState(() => _pressed = false),
+        onTapCancel: () => setState(() => _pressed = false),
         onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: _hovered ? AppColors.surfaceLight : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color:
-                  _hovered ? AppColors.surfaceBorder : Colors.transparent,
+        child: AnimatedScale(
+          scale: _pressed ? 0.9 : 1.0,
+          duration: AppConstants.animDurationFast,
+          curve: AppCurves.easeOutExpo,
+          child: AnimatedContainer(
+            duration: AppConstants.animDurationFast,
+            curve: AppCurves.easeOutExpo,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: _hovered ? colors.surfaceLight : Colors.transparent,
+              borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+              border: Border.all(
+                color: _hovered ? colors.surfaceBorder : Colors.transparent,
+              ),
+              boxShadow: _hovered ? colors.subtleShadow : null,
             ),
-          ),
-          child: Icon(
-            widget.icon,
-            size: 20,
-            color: _hovered ? AppColors.textPrimary : AppColors.textSecondary,
+            child: Icon(
+              widget.icon,
+              size: 20,
+              color: _hovered ? colors.textPrimary : colors.textSecondary,
+            ),
           ),
         ),
       ),

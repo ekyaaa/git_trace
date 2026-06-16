@@ -26,7 +26,7 @@ Laporan magang umumnya memerlukan pencatatan jam masuk dan jam pulang. GitTrace 
 
 ---
 
-### 3. Pratinjau & Ekspor Laporan (Excel Export)
+### 3. Pratinjau & Ekspor Laporan (Excel Dan Docx Export)
 Sebelum berkas laporan diunduh, Anda dapat meninjau data dalam bentuk tabel pratinjau yang rapi. Format laporan yang dihasilkan telah disesuaikan dengan standar umum laporan magang.
 
 ![Pratinjau Ekspor Laporan](docs/export.png)

@@ -1,0 +1,97 @@
+import 'dart:io';
+import 'package:flutter/services.dart';
+import 'package:path/path.dart' as p;
+import '../models/commit_model.dart';
+import '../models/report_variable_model.dart';
+import 'docx_template_engine.dart';
+import 'excel_exporter.dart';
+
+class DocxExporter {
+  static Future<String?> exportReport({
+    required List<CommitModel> commits,
+    required int month,
+    required int year,
+    required String outputPath,
+    required ReportVariableModel variables,
+    String? customTemplatePath,
+    bool mergeDuplicates = true,
+  }) async {
+    try {
+      // 1. Build report rows (same logic as Excel)
+      final rows = await ExcelExporter.buildReportRows(
+        commits,
+        month,
+        year,
+        mergeDuplicates: mergeDuplicates,
+      );
+      if (rows.isEmpty) return null;
+
+      // 2. Load template bytes
+      Uint8List templateBytes;
+      if (customTemplatePath != null && File(customTemplatePath).existsSync()) {
+        templateBytes = await File(customTemplatePath).readAsBytes();
+      } else {
+        final byteData = await rootBundle.load(
+          'assets/templates/default_logbook_template.docx',
+        );
+        templateBytes = byteData.buffer.asUint8List();
+      }
+
+      // 3. Prepare variable map
+      final variableMap = <String, String>{
+        'nama': variables.nama,
+        'nim': variables.nim,
+        'prodi': variables.prodi,
+        'mitra': variables.mitra,
+        'pembimbing': variables.namaPembimbing,
+        'pembimbing_lapangan': variables.namaPembimbingLapangan,
+        'nama_mahasiswa': variables.namaMahasiswa.isNotEmpty ? variables.namaMahasiswa : variables.nama,
+        'nama_pembimbing': variables.namaPembimbing.isNotEmpty ? variables.namaPembimbing : variables.nama,
+        'nama_pembimbing_lapangan': variables.namaPembimbingLapangan.isNotEmpty ? variables.namaPembimbingLapangan : variables.nama,
+        'bulan': month.toString().padLeft(2, '0'),
+        'tahun': year.toString(),
+      };
+      print('[DocxExport] Raw model: nama="${variables.nama}", namaMahasiswa="${variables.namaMahasiswa}", namaPembimbing="${variables.namaPembimbing}", namaPembimbingLapangan="${variables.namaPembimbingLapangan}"');
+      print('[DocxExport] variableMap: nama_mahasiswa="${variableMap['nama_mahasiswa']}", nama_pembimbing="${variableMap['nama_pembimbing']}", nama_pembimbing_lapangan="${variableMap['nama_pembimbing_lapangan']}"');
+
+      // 4. Generate docx
+      final docxBytes = await DocxTemplateEngine.generate(
+        templateBytes: templateBytes,
+        variables: variableMap,
+        tableRows: rows,
+      );
+
+      // 5. Save file
+      final fileName = 'GitTrace_Logbook_${year}_${month.toString().padLeft(2, '0')}.docx';
+      final filePath = p.join(outputPath, fileName);
+      final file = File(filePath);
+      await file.writeAsBytes(docxBytes);
+
+      return filePath;
+    } catch (e, stack) {
+      print('[DocxExport] ERROR: $e');
+      print('[DocxExport] Stack: $stack');
+      rethrow;
+    }
+  }
+
+  static Future<String?> exportReportFromFile({
+    required List<CommitModel> commits,
+    required int month,
+    required int year,
+    required String outputPath,
+    required ReportVariableModel variables,
+    required String templatePath,
+    bool mergeDuplicates = true,
+  }) async {
+    return exportReport(
+      commits: commits,
+      month: month,
+      year: year,
+      outputPath: outputPath,
+      variables: variables,
+      customTemplatePath: templatePath,
+      mergeDuplicates: mergeDuplicates,
+    );
+  }
+}
