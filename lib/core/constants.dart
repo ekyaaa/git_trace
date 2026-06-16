@@ -24,6 +24,7 @@ class AppConstants {
   static const String prefKeySelectedRepos = 'selected_repos';
   static const String prefKeyThemeMode = 'theme_mode';
   static const String prefKeyMergeDuplicates = 'merge_duplicates';
+  static const String prefKeyExportPath = 'export_path';
 
   // Git commands
   static const String gitExecutable = 'git';

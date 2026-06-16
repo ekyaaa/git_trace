@@ -1,9 +1,9 @@
 import '../models/commit_model.dart';
 
 class DuplicateCommitResolver {
-  /// Finds groups of commits with the same subject on the same day.
+  /// Finds groups of commits in the same repository on the same day.
   /// Returns a map of date -> list of duplicate groups.
-  /// Each duplicate group is a list of commits sharing the same subject.
+  /// Each duplicate group is a list of commits sharing the same repoPath.
   static Map<DateTime, List<List<CommitModel>>> findDuplicateGroups(
     List<CommitModel> commits,
     int month,
@@ -23,15 +23,15 @@ class DuplicateCommitResolver {
 
       if (dateCommits.length < 2) continue;
 
-      // Group by subject
-      final subjectGroups = <String, List<CommitModel>>{};
+      // Group by repoPath
+      final groups = <String, List<CommitModel>>{};
       for (final c in dateCommits) {
-        subjectGroups.putIfAbsent(c.subject, () => []).add(c);
+        groups.putIfAbsent(c.repoPath, () => []).add(c);
       }
 
       // Filter only groups with more than one commit (duplicates)
       final duplicates = <List<CommitModel>>[];
-      for (final group in subjectGroups.values) {
+      for (final group in groups.values) {
         if (group.length > 1) {
           duplicates.add(group);
         }
@@ -72,46 +72,35 @@ class DuplicateCommitResolver {
   }
 
   /// Builds the "kegiatan" string with duplicate commits merged.
-  /// Commits with the same subject on the same day are combined into one line:
-  ///   [repo1, repo2] subject
-  /// Unique commits remain one line:
-  ///   [repo] subject
+  /// Commits in the same repository on the same day are combined.
+  /// Each group is formatted as:
+  ///   - [repoName] subject1, subject2, ...
   static String buildMergedKegiatan(List<CommitModel> dateCommits) {
     if (dateCommits.isEmpty) return '';
 
-    // Group by subject
-    final subjectGroups = <String, List<CommitModel>>{};
+    // Group by repoPath
+    final groups = <String, List<CommitModel>>{};
     for (final c in dateCommits) {
-      subjectGroups.putIfAbsent(c.subject, () => []).add(c);
+      groups.putIfAbsent(c.repoPath, () => []).add(c);
     }
 
     final lines = <String>[];
-    for (final entry in subjectGroups.entries) {
-      final subject = entry.key;
-      final group = entry.value;
-
-      if (group.length > 1) {
-        // Merge: collect unique repo names
-        final repoNames = group.map((c) => c.repoName).toSet().toList();
-        if (repoNames.length == 1) {
-          lines.add('[${repoNames.first}] $subject');
-        } else {
-          lines.add('[${repoNames.join(', ')}] $subject');
-        }
-      } else {
-        lines.add('[${group.first.repoName}] $subject');
-      }
+    for (final group in groups.values) {
+      final firstCommit = group.first;
+      // Get unique subjects to avoid repeating identical commit messages
+      final uniqueSubjects = group.map((c) => c.subject).toSet().toList();
+      lines.add('- [${firstCommit.repoName}] ${uniqueSubjects.join(', ')}');
     }
 
     return lines.join('\n');
   }
 
   /// Builds the "kegiatan" string with commits kept separate (original behavior).
-  /// Each commit gets its own line:
-  ///   [repo] subject
+  /// Each commit gets its own line formatted as:
+  ///   - [repoName] subject
   static String buildSeparateKegiatan(List<CommitModel> dateCommits) {
     return dateCommits
-        .map((c) => '[${c.repoName}] ${c.subject}')
+        .map((c) => '- [${c.repoName}] ${c.subject}')
         .join('\n');
   }
 
@@ -126,7 +115,7 @@ class DuplicateCommitResolver {
       (other) =>
           other != commit &&
           other.hash != commit.hash &&
-          other.subject == commit.subject,
+          other.repoPath == commit.repoPath,
     );
   }
 }

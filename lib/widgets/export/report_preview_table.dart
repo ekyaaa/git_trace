@@ -5,8 +5,15 @@ import '../../models/report_row_model.dart';
 
 class ReportPreviewTable extends StatelessWidget {
   final List<ReportRowModel> rows;
+  final Function(int index, String value) onKegiatanChanged;
+  final Function(int index) onResetKegiatan;
 
-  const ReportPreviewTable({super.key, required this.rows});
+  const ReportPreviewTable({
+    super.key,
+    required this.rows,
+    required this.onKegiatanChanged,
+    required this.onResetKegiatan,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +82,14 @@ class ReportPreviewTable extends StatelessWidget {
                           _DataCell(text: row.dayDate, flex: 3),
                           _DataCell(text: row.checkIn, flex: 1, center: true),
                           _DataCell(text: row.checkOut, flex: 1, center: true),
-                          _DataCell(text: row.kegiatan, flex: 5),
+                          Expanded(
+                            flex: 5,
+                            child: _EditableKegiatanCell(
+                              row: row,
+                              onChanged: (val) => onKegiatanChanged(index, val),
+                              onReset: () => onResetKegiatan(index),
+                            ),
+                          ),
                         ],
                       ),
                     );
@@ -136,7 +150,7 @@ class _DataCell extends StatelessWidget {
     return Expanded(
       flex: flex,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         child: Text(
           text,
           style: TextStyle(
@@ -148,6 +162,113 @@ class _DataCell extends StatelessWidget {
           textAlign: center ? TextAlign.center : TextAlign.start,
         ),
       ),
+    );
+  }
+}
+
+class _EditableKegiatanCell extends StatefulWidget {
+  final ReportRowModel row;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onReset;
+
+  const _EditableKegiatanCell({
+    required this.row,
+    required this.onChanged,
+    required this.onReset,
+  });
+
+  @override
+  State<_EditableKegiatanCell> createState() => _EditableKegiatanCellState();
+}
+
+class _EditableKegiatanCellState extends State<_EditableKegiatanCell> {
+  late TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.row.kegiatan);
+  }
+
+  @override
+  void didUpdateWidget(covariant _EditableKegiatanCell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.row.kegiatan != widget.row.kegiatan) {
+      if (_controller.text != widget.row.kegiatan) {
+        final cursorPosition = _controller.selection;
+        _controller.text = widget.row.kegiatan;
+        try {
+          _controller.selection = cursorPosition;
+        } catch (_) {}
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = ThemeColors.of(context);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+            child: TextField(
+              controller: _controller,
+              maxLines: null,
+              style: TextStyle(
+                fontSize: 12,
+                color: colors.textPrimary,
+                height: 1.4,
+              ),
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                filled: true,
+                fillColor: colors.background.withValues(alpha: 0.5),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+                  borderSide: BorderSide(
+                    color: colors.surfaceBorder.withValues(alpha: 0.5),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+                  borderSide: BorderSide(
+                    color: colors.surfaceBorder.withValues(alpha: 0.5),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppConstants.radiusSmall),
+                  borderSide: BorderSide(
+                    color: colors.accentBlue.withValues(alpha: 0.8),
+                  ),
+                ),
+              ),
+              onChanged: widget.onChanged,
+            ),
+          ),
+        ),
+        Tooltip(
+          message: 'Reset ke default commit',
+          child: Material(
+            color: Colors.transparent,
+            child: IconButton(
+              icon: Icon(Icons.refresh, size: 16, color: colors.textTertiary),
+              hoverColor: colors.surfaceLight,
+              onPressed: widget.onReset,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+      ],
     );
   }
 }

@@ -227,6 +227,34 @@ class DocxTemplateEngine {
   static XmlElement _buildRowFromTemplate(XmlElement templateRow, ReportRowModel rowData) {
     final newRow = templateRow.copy();
 
+    // Align paragraph for kegiatan to left
+    final cells = newRow.findAllElements('tc', namespace: _nsW).toList();
+    for (final cell in cells) {
+      final cellText = cell.descendants
+          .whereType<XmlElement>()
+          .where((e) => e.name.local == 't')
+          .map((t) => t.innerText)
+          .join('');
+      if (cellText.contains('{{kegiatan}}')) {
+        final pElements = cell.findAllElements('p', namespace: _nsW).toList();
+        for (final p in pElements) {
+          var pPr = p.getElement('pPr', namespace: _nsW);
+          if (pPr == null) {
+            final pPrFragment = XmlDocument.parse('<w:pPr xmlns:w="$_nsW"/>');
+            pPr = pPrFragment.rootElement.copy();
+            p.children.insert(0, pPr);
+          }
+          var jc = pPr.getElement('jc', namespace: _nsW);
+          if (jc != null) {
+            jc.setAttribute('w:val', 'left');
+          } else {
+            final jcFragment = XmlDocument.parse('<w:jc w:val="left" xmlns:w="$_nsW"/>');
+            pPr.children.add(jcFragment.rootElement.copy());
+          }
+        }
+      }
+    }
+
     final tElements = newRow.descendants
         .whereType<XmlElement>()
         .where((e) => e.name.local == 't')
@@ -252,7 +280,31 @@ class DocxTemplateEngine {
       }
 
       if (newText != text) {
-        tElement.innerText = newText;
+        if (newText.contains('\n')) {
+          final parent = tElement.parent;
+          if (parent != null) {
+            final lines = newText.split('\n');
+            final newChildren = <XmlNode>[];
+            for (int i = 0; i < lines.length; i++) {
+              if (i > 0) {
+                final brFragment = XmlDocument.parse('<w:br xmlns:w="$_nsW"/>');
+                newChildren.add(brFragment.rootElement.copy());
+              }
+              final escapedLine = _escapeXmlText(lines[i]);
+              final tFragment = XmlDocument.parse('<w:t xml:space="preserve" xmlns:w="$_nsW">$escapedLine</w:t>');
+              newChildren.add(tFragment.rootElement.copy());
+            }
+            final index = parent.children.indexOf(tElement);
+            if (index >= 0) {
+              parent.children.removeAt(index);
+              parent.children.insertAll(index, newChildren);
+            }
+          } else {
+            tElement.innerText = newText;
+          }
+        } else {
+          tElement.innerText = newText;
+        }
       }
     }
 
@@ -273,8 +325,21 @@ class DocxTemplateEngine {
 
     final rowXml = StringBuffer('<w:tr xmlns:w="$_nsW">');
     for (int i = 0; i < columnCount; i++) {
-      final text = i < positionalValues.length ? _escapeXmlText(positionalValues[i]) : '';
-      rowXml.write('<w:tc><w:p><w:r><w:t xml:space="preserve">$text</w:t></w:r></w:p></w:tc>');
+      rowXml.write('<w:tc>');
+      final isKegiatan = (i == 3);
+      final pPr = isKegiatan ? '<w:pPr><w:jc w:val="left"/></w:pPr>' : '';
+      rowXml.write('<w:p>$pPr<w:r>');
+      if (i < positionalValues.length) {
+        final text = positionalValues[i];
+        final lines = text.split('\n');
+        for (int j = 0; j < lines.length; j++) {
+          if (j > 0) {
+            rowXml.write('<w:br/>');
+          }
+          rowXml.write('<w:t xml:space="preserve">${_escapeXmlText(lines[j])}</w:t>');
+        }
+      }
+      rowXml.write('</w:r></w:p></w:tc>');
     }
     rowXml.write('</w:tr>');
     return XmlDocument.parse(rowXml.toString()).rootElement.copy();

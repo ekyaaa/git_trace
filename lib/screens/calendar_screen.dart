@@ -6,6 +6,7 @@ import '../models/commit_model.dart';
 import '../providers/commits_provider.dart';
 import '../providers/calendar_provider.dart';
 import '../providers/work_hours_provider.dart';
+import '../providers/selected_repos_provider.dart';
 import '../widgets/calendar/month_calendar.dart';
 import '../widgets/calendar/month_navigator.dart';
 import '../widgets/work_hours/bulk_hour_dialog.dart';
@@ -25,6 +26,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final calState = ref.watch(calendarStateProvider);
     final commits = ref.watch(commitsProvider);
     final workHours = ref.watch(workHoursProvider);
+    final selectedReposCount = ref.watch(selectedReposProvider).length;
 
     final commitsByDate = <DateTime, List<CommitModel>>{};
     commits.whenData((list) {
@@ -35,19 +37,39 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
     final totalCommits = commits.valueOrNull?.length ?? 0;
     final activeDays = commitsByDate.length;
-    final repoCount =
-        commits.valueOrNull?.map((c) => c.repoName).toSet().length ?? 0;
+
+    int totalHariMasuk = 0;
+    final daysInMonth = DateTime(calState.year, calState.month + 1, 0).day;
+    for (int day = 1; day <= daysInMonth; day++) {
+      final date = DateTime(calState.year, calState.month, day);
+      final isWeekend = date.weekday == DateTime.saturday || date.weekday == DateTime.sunday;
+      final hasCommits = commitsByDate.containsKey(date);
+      if (!isWeekend || hasCommits) {
+        totalHariMasuk++;
+      }
+    }
 
     return Column(
       children: [
-        _buildTopBar(calState, totalCommits, activeDays, repoCount, workHours),
+        _buildTopBar(
+          calState: calState,
+          totalCommits: totalCommits,
+          selectedReposCount: selectedReposCount,
+          totalHariMasuk: totalHariMasuk,
+          activeDays: activeDays,
+        ),
         Expanded(child: _buildCalendar(commits, calState, commitsByDate, workHours)),
       ],
     );
   }
 
-  Widget _buildTopBar(CalendarState calState, int totalCommits, int activeDays,
-      int repoCount, Map workHours) {
+  Widget _buildTopBar({
+    required CalendarState calState,
+    required int totalCommits,
+    required int selectedReposCount,
+    required int totalHariMasuk,
+    required int activeDays,
+  }) {
     final colors = ThemeColors.of(context);
 
     return Container(
@@ -95,15 +117,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         ),
         const SizedBox(height: 14),
         Row(children: [
-          _stat(Icons.commit, '$totalCommits', 'Commit', colors.accentBlue),
+          _stat(Icons.commit, '$totalCommits', 'Total Commit', colors.accentBlue),
           const SizedBox(width: 20),
-          _stat(Icons.calendar_today, '$activeDays', 'Hari Aktif',
-              colors.accentGreen),
+          _stat(Icons.source, '$selectedReposCount', 'Repo Dipilih', colors.accentPurple),
           const SizedBox(width: 20),
-          _stat(Icons.source, '$repoCount', 'Repo', colors.accentPurple),
+          _stat(Icons.calendar_today, '$totalHariMasuk', 'Hari Kerja', colors.accentGreen),
           const SizedBox(width: 20),
-          _stat(Icons.access_time, '${workHours.length}', 'Jam Diisi',
-              colors.accentOrange),
+          _stat(Icons.check_circle_outline, '$activeDays', 'Hari Ada Kegiatan', colors.accentOrange),
         ]),
       ]),
     );

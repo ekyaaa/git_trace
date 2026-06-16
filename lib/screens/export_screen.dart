@@ -7,14 +7,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/constants.dart';
 import '../core/theme_colors.dart';
 import '../models/report_row_model.dart';
+import '../models/commit_model.dart';
 import '../providers/commits_provider.dart';
 import '../providers/calendar_provider.dart';
 import '../providers/report_variables_provider.dart';
 import '../services/excel_exporter.dart';
 import '../services/docx_exporter.dart';
-import '../services/duplicate_commit_resolver.dart';
 import '../widgets/export/report_preview_table.dart';
 import '../widgets/export/report_variable_form.dart';
+import 'dart:async';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:path/path.dart' as p;
+import '../services/draft_kegiatan_storage.dart';
+import '../services/pdf_exporter.dart';
 import '../widgets/animations/fade_in.dart';
 
 class ExportScreen extends ConsumerStatefulWidget {
@@ -30,9 +35,52 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
   bool _loading = true;
   bool _exporting = false;
   String? _lastExportPath;
-  String _exportFormat = 'excel'; // 'excel' or 'word'
+  String _exportFormat = 'excel'; // 'excel' or 'docs'
   bool _mergeDuplicates = true;
-  int _duplicateCount = 0;
+  Timer? _draftSaveDebounce;
+  final Map<String, String> _pendingDrafts = {};
+
+  @override
+  void dispose() {
+    _draftSaveDebounce?.cancel();
+    if (_pendingDrafts.isNotEmpty) {
+      _pendingDrafts.forEach((key, value) {
+        DraftKegiatanStorage.setDraftKegiatan(key, value);
+      });
+    }
+    super.dispose();
+  }
+
+  void _onKegiatanChanged(int index, String newText) {
+    final row = _previewRows[index];
+    setState(() {
+      _previewRows[index] = ReportRowModel(
+        dateKey: row.dateKey,
+        dayDate: row.dayDate,
+        checkIn: row.checkIn,
+        checkOut: row.checkOut,
+        kegiatan: newText,
+      );
+    });
+
+    _pendingDrafts[row.dateKey] = newText;
+
+    _draftSaveDebounce?.cancel();
+    _draftSaveDebounce = Timer(const Duration(milliseconds: 500), () async {
+      final draftsCopy = Map<String, String>.from(_pendingDrafts);
+      _pendingDrafts.clear();
+      for (final entry in draftsCopy.entries) {
+        await DraftKegiatanStorage.setDraftKegiatan(entry.key, entry.value);
+      }
+    });
+  }
+
+  Future<void> _onResetKegiatan(int index) async {
+    final row = _previewRows[index];
+    await DraftKegiatanStorage.removeDraftKegiatan(row.dateKey);
+    _pendingDrafts.remove(row.dateKey);
+    await _loadPreview();
+  }
 
   @override
   void initState() {
@@ -66,12 +114,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
       calState.year,
       mergeDuplicates: _mergeDuplicates,
     );
-    final missing = await ExcelExporter.getMissingWorkHoursDates(
-      commits,
-      calState.month,
-      calState.year,
-    );
-    final dupCount = DuplicateCommitResolver.countExtraDuplicates(
+    final missing = await ExcelExporter.getEmptyActivityDates(
       commits,
       calState.month,
       calState.year,
@@ -79,23 +122,27 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     setState(() {
       _previewRows = rows;
       _missingDates = missing;
-      _duplicateCount = dupCount;
       _loading = false;
     });
   }
 
   Future<void> _export() async {
     final commits = ref.read(commitsProvider).valueOrNull ?? [];
-    final colors = ThemeColors.of(context);
+
+    final prefs = await SharedPreferences.getInstance();
+    final initialDir = prefs.getString(AppConstants.prefKeyExportPath);
 
     String? outputPath = await FilePicker.platform.getDirectoryPath(
       dialogTitle: 'Pilih Folder Simpan',
+      initialDirectory: initialDir,
     );
 
     if (outputPath == null) {
       final dir = await getDownloadsDirectory();
       outputPath = dir?.path;
       if (outputPath == null) return;
+    } else {
+      await prefs.setString(AppConstants.prefKeyExportPath, outputPath);
     }
 
     setState(() => _exporting = true);
@@ -115,23 +162,11 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     });
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(filePath != null
-              ? 'Berhasil! File disimpan di:\n$filePath'
-              : 'Gagal membuat file Excel.'),
-          backgroundColor:
-              filePath != null ? colors.accentGreen : colors.accentRed,
-          duration: const Duration(seconds: 6),
-          action: filePath != null
-              ? SnackBarAction(
-                  label: '📂 Buka Folder',
-                  textColor: Colors.white,
-                  onPressed: () => _openFileInManager(filePath),
-                )
-              : null,
-        ),
-      );
+      if (filePath != null) {
+        _showExportSuccessDialog(filePath, 'Excel');
+      } else {
+        _showExportFailureDialog('Terjadi kesalahan yang tidak diketahui.', 'Excel');
+      }
     }
   }
 
@@ -219,14 +254,20 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
 
     await ref.read(reportVariablesProvider.notifier).saveImmediate();
 
+    final prefs = await SharedPreferences.getInstance();
+    final initialDir = prefs.getString(AppConstants.prefKeyExportPath);
+
     String? outputPath = await FilePicker.platform.getDirectoryPath(
       dialogTitle: 'Pilih Folder Simpan',
+      initialDirectory: initialDir,
     );
 
     if (outputPath == null) {
       final dir = await getDownloadsDirectory();
       outputPath = dir?.path;
       if (outputPath == null) return;
+    } else {
+      await prefs.setString(AppConstants.prefKeyExportPath, outputPath);
     }
 
     setState(() => _exporting = true);
@@ -260,23 +301,238 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     });
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(filePath != null
-              ? 'Berhasil! File disimpan di:\n$filePath'
-              : 'Gagal membuat file Word.${errorMsg != null ? '\nError: $errorMsg' : ''}'),
-          backgroundColor:
-              filePath != null ? colors.accentGreen : colors.accentRed,
-          duration: const Duration(seconds: 6),
-          action: filePath != null
-              ? SnackBarAction(
-                  label: '📂 Buka Folder',
-                  textColor: Colors.white,
-                  onPressed: () => _openFileInManager(filePath!),
-                )
-              : null,
+      if (filePath != null) {
+        _showExportSuccessDialog(filePath, 'Word');
+      } else {
+        _showExportFailureDialog(errorMsg ?? 'Terjadi kesalahan yang tidak diketahui.', 'Word');
+      }
+    }
+  }
+
+  Future<void> _exportDocs() async {
+    final variables = ref.read(reportVariablesProvider);
+    final colors = ThemeColors.of(context);
+
+    if (!variables.isFilled) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Isi data Nama, NIM, Prodi, dan Mitra di bagian Data Laporan terlebih dahulu.'),
+            backgroundColor: colors.accentOrange,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+      return;
+    }
+
+    final selectedFormat = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
+          side: BorderSide(color: colors.surfaceBorder.withValues(alpha: 0.6)),
         ),
+        title: Text(
+          'Pilih Format Dokumen',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildDialogFormatCard(
+              title: 'Word Document (.docx)',
+              subtitle: 'Ekspor logbook ke format Word (.docx) menggunakan template.',
+              icon: Icons.file_present,
+              iconColor: colors.accentBlue,
+              onTap: () => Navigator.of(ctx).pop('word'),
+            ),
+            const SizedBox(height: 12),
+            _buildDialogFormatCard(
+              title: 'PDF Document (.pdf)',
+              subtitle: 'Ekspor logbook ke format PDF (.pdf) secara langsung.',
+              icon: Icons.picture_as_pdf,
+              iconColor: colors.accentRed,
+              onTap: () => Navigator.of(ctx).pop('pdf'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(
+              'Batal',
+              style: TextStyle(color: colors.textTertiary),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (selectedFormat == 'word') {
+      await _exportWord();
+    } else if (selectedFormat == 'pdf') {
+      await _exportPdf();
+    }
+  }
+
+  Widget _buildDialogFormatCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color iconColor,
+    required VoidCallback onTap,
+  }) {
+    final colors = ThemeColors.of(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: colors.surfaceLight.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+          border: Border.all(color: colors.surfaceBorder.withValues(alpha: 0.5)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: iconColor, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: colors.textSecondary,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final commits = ref.read(commitsProvider).valueOrNull ?? [];
+    final variables = ref.read(reportVariablesProvider);
+
+    final prefs = await SharedPreferences.getInstance();
+    final initialDir = prefs.getString(AppConstants.prefKeyExportPath);
+
+    String? outputPath = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: 'Pilih Folder Simpan PDF',
+      initialDirectory: initialDir,
+    );
+
+    if (outputPath == null) {
+      final dir = await getDownloadsDirectory();
+      outputPath = dir?.path;
+      if (outputPath == null) return;
+    } else {
+      await prefs.setString(AppConstants.prefKeyExportPath, outputPath);
+    }
+
+    setState(() => _exporting = true);
+    final calState = ref.read(calendarStateProvider);
+
+    final filePath = await PdfExporter.exportReport(
+      commits: commits,
+      month: calState.month,
+      year: calState.year,
+      outputPath: outputPath,
+      variables: variables,
+      customTemplatePath: variables.customTemplatePath,
+      mergeDuplicates: _mergeDuplicates,
+    );
+
+    setState(() {
+      _exporting = false;
+      _lastExportPath = filePath;
+    });
+
+    if (mounted) {
+      if (filePath != null) {
+        _showExportSuccessDialog(filePath, 'PDF');
+      } else {
+        _showExportFailureDialog('Terjadi kesalahan yang tidak diketahui saat mengekspor PDF.', 'PDF');
+      }
+    }
+  }
+
+  Future<void> _downloadDefaultTemplate() async {
+    final colors = ThemeColors.of(context);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final initialDir = prefs.getString(AppConstants.prefKeyExportPath);
+
+      String? outputPath = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Pilih Folder Simpan Template',
+        initialDirectory: initialDir,
       );
+
+      if (outputPath == null) {
+        final dir = await getDownloadsDirectory();
+        outputPath = dir?.path;
+        if (outputPath == null) return;
+      } else {
+        await prefs.setString(AppConstants.prefKeyExportPath, outputPath);
+      }
+
+      final byteData = await rootBundle.load(
+        'assets/templates/default_logbook_template.docx',
+      );
+      final bytes = byteData.buffer.asUint8List();
+
+      final filePath = p.join(outputPath, 'default_logbook_template.docx');
+      final file = File(filePath);
+      await file.writeAsBytes(bytes);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Template berhasil diunduh ke: $filePath'),
+            backgroundColor: colors.accentGreen,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengunduh template: $e'),
+            backgroundColor: colors.accentRed,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -303,6 +559,115 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     }
   }
 
+  void _showExportSuccessDialog(String filePath, String formatName) {
+    final colors = ThemeColors.of(context);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
+          side: BorderSide(color: colors.surfaceBorder.withValues(alpha: 0.6)),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.check_circle_outline, color: colors.accentGreen, size: 24),
+            const SizedBox(width: 8),
+            Text(
+              'Export Selesai',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Laporan $formatName berhasil diexport.',
+              style: TextStyle(color: colors.textPrimary, fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: colors.surfaceLight,
+                borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                border: Border.all(color: colors.surfaceBorder.withValues(alpha: 0.4)),
+              ),
+              child: SelectableText(
+                filePath,
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                  color: colors.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(
+              'Tutup',
+              style: TextStyle(color: colors.textTertiary),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _openFileInManager(filePath);
+            },
+            icon: const Icon(Icons.folder_open, size: 16),
+            label: const Text('Buka Folder'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showExportFailureDialog(String errorMsg, String formatName) {
+    final colors = ThemeColors.of(context);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
+          side: BorderSide(color: colors.surfaceBorder.withValues(alpha: 0.6)),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.error_outline, color: colors.accentRed, size: 24),
+            const SizedBox(width: 8),
+            Text(
+              'Export Gagal',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Gagal melakukan export $formatName.\n\nDetail: $errorMsg',
+          style: TextStyle(color: colors.textPrimary, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Tutup'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _openFileInManager(String filePath) async {
     try {
       final file = File(filePath);
@@ -313,8 +678,21 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
       } else if (Platform.isMacOS) {
         await Process.run('open', ['-R', filePath]);
       } else if (Platform.isLinux) {
-        final dir = file.parent.path;
-        await Process.run('xdg-open', [dir]);
+        final uri = Uri.file(filePath).toString();
+        final dbusResult = await Process.run('dbus-send', [
+          '--session',
+          '--dest=org.freedesktop.FileManager1',
+          '--type=method_call',
+          '/org/freedesktop/FileManager1',
+          'org.freedesktop.FileManager1.ShowItems',
+          'array:string:$uri',
+          'string:',
+        ]);
+        
+        if (dbusResult.exitCode != 0) {
+          final dir = file.parent.path;
+          await Process.run('xdg-open', [dir]);
+        }
       }
     } catch (e) {
       debugPrint('Gagal membuka file manager: $e');
@@ -323,6 +701,14 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<List<CommitModel>>>(commitsProvider, (previous, next) {
+      if (next is AsyncLoading) {
+        setState(() => _loading = true);
+      } else {
+        _loadPreview();
+      }
+    });
+
     final calState = ref.watch(calendarStateProvider);
     final colors = ThemeColors.of(context);
 
@@ -387,7 +773,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                   ],
                 ),
                 Row(children: [
-                  if (_missingDates.isNotEmpty)
+                  if (_missingDates.isNotEmpty) ...[
                     FadeIn(
                       delay: const Duration(milliseconds: 100),
                       child: Container(
@@ -404,7 +790,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                           Icon(Icons.warning_amber,
                               size: 14, color: colors.accentOrange.withValues(alpha: 0.9)),
                           const SizedBox(width: 6),
-                          Text('${_missingDates.length} hari belum diisi jam',
+                          Text('${_missingDates.length} hari belum ada kegiatan',
                               style: TextStyle(
                                   fontSize: 11,
                                   color: colors.accentOrange.withValues(alpha: 0.9),
@@ -412,35 +798,11 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                         ]),
                       ),
                     ),
-                  if (_duplicateCount > 0) ...[
-                    const SizedBox(width: 8),
-                    FadeIn(
-                      delay: const Duration(milliseconds: 120),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: colors.accentPurple.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-                          border: Border.all(
-                            color: colors.accentPurple.withValues(alpha: 0.25),
-                          ),
-                        ),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          Icon(Icons.content_copy,
-                              size: 14, color: colors.accentPurple.withValues(alpha: 0.9)),
-                          const SizedBox(width: 6),
-                          Text('$_duplicateCount commit duplikat',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  color: colors.accentPurple.withValues(alpha: 0.9),
-                                  fontWeight: FontWeight.w600)),
-                        ]),
-                      ),
-                    ),
+                    const SizedBox(width: 12),
                   ],
-                  const SizedBox(width: 12),
                   _buildMergeToggle(colors),
+                  const SizedBox(width: 12),
+                  _buildGlobalResetButton(colors),
                   const SizedBox(width: 12),
                   FadeIn(
                     delay: const Duration(milliseconds: 150),
@@ -456,7 +818,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           _buildFormatButton('excel', 'Excel', Icons.table_chart),
-                          _buildFormatButton('word', 'Word', Icons.description),
+                          _buildFormatButton('docs', 'Docs', Icons.description),
                         ],
                       ),
                     ),
@@ -464,33 +826,38 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                   const SizedBox(width: 12),
                   FadeIn(
                     delay: const Duration(milliseconds: 200),
-                    child: ElevatedButton.icon(
-                      onPressed: _exporting || _previewRows.isEmpty
-                          ? null
-                          : (_exportFormat == 'excel' ? _export : _exportWord),
-                      icon: _exporting
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white))
-                          : Icon(
-                              _exportFormat == 'excel'
-                                  ? Icons.file_download
-                                  : Icons.file_download,
-                              size: 18),
-                      label: Text(_exporting
-                          ? 'Exporting...'
-                          : (_exportFormat == 'excel'
-                              ? 'Export Excel'
-                              : 'Export Word')),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 14,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                    child: MouseRegion(
+                      cursor: _exporting || _previewRows.isEmpty
+                          ? SystemMouseCursors.basic
+                          : SystemMouseCursors.click,
+                      child: ElevatedButton.icon(
+                        onPressed: _exporting || _previewRows.isEmpty
+                            ? null
+                            : (_exportFormat == 'excel' ? _export : _exportDocs),
+                        icon: _exporting
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                            : Icon(
+                                _exportFormat == 'excel'
+                                    ? Icons.file_download
+                                    : Icons.file_download,
+                                size: 18),
+                        label: Text(_exporting
+                            ? 'Exporting...'
+                            : (_exportFormat == 'excel'
+                                ? 'Export Excel'
+                                : 'Export Docs')),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 14,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                          ),
                         ),
                       ),
                     ),
@@ -505,8 +872,8 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
         Expanded(
           child: Column(
             children: [
-              // Word export options (with constrained height + scrollable)
-              if (_exportFormat == 'word')
+              // Docs export options (with constrained height + scrollable)
+              if (_exportFormat == 'docs')
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 480),
                   child: SingleChildScrollView(
@@ -531,6 +898,24 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                                       padding: const EdgeInsets.symmetric(vertical: 10),
                                       side: BorderSide(
                                         color: colors.surfaceBorder.withValues(alpha: 0.5),
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: _downloadDefaultTemplate,
+                                    icon: const Icon(Icons.download, size: 16),
+                                    label: const Text('Unduh Template Default'),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 10),
+                                      foregroundColor: colors.accentBlue,
+                                      side: BorderSide(
+                                        color: colors.accentBlue.withValues(alpha: 0.5),
                                       ),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
@@ -610,7 +995,11 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                               ),
                             ),
                           )
-                        : ReportPreviewTable(rows: _previewRows),
+                        : ReportPreviewTable(
+                            rows: _previewRows,
+                            onKegiatanChanged: _onKegiatanChanged,
+                            onResetKegiatan: _onResetKegiatan,
+                          ),
               ),
             ],
           ),
@@ -662,39 +1051,137 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
     );
   }
 
+  Widget _buildGlobalResetButton(ThemeColors colors) {
+    return FadeIn(
+      delay: const Duration(milliseconds: 150),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: OutlinedButton.icon(
+          onPressed: _previewRows.isEmpty ? null : _resetAllDrafts,
+          icon: const Icon(Icons.restore, size: 14),
+          label: const Text(
+            'Reset Semua Edit',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.1,
+            ),
+          ),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: colors.accentRed,
+            side: BorderSide(
+              color: colors.accentRed.withValues(alpha: 0.4),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _resetAllDrafts() async {
+    final colors = ThemeColors.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.radiusLarge),
+          side: BorderSide(color: colors.surfaceBorder.withValues(alpha: 0.6)),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: colors.accentRed, size: 24),
+            const SizedBox(width: 8),
+            Text(
+              'Reset Semua Edit',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Apakah Anda yakin ingin menghapus seluruh edit kegiatan kustom dan kembali ke default commit untuk bulan ini?',
+          style: TextStyle(color: colors.textPrimary, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              'Batal',
+              style: TextStyle(color: colors.textTertiary),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: colors.accentRed,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final calState = ref.read(calendarStateProvider);
+      await DraftKegiatanStorage.clearMonthDrafts(calState.year, calState.month);
+      _pendingDrafts.clear();
+      await _loadPreview();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Seluruh edit kustom bulan ini berhasil direset.'),
+            backgroundColor: colors.accentGreen,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildFormatButton(String format, String label, IconData icon) {
     final isSelected = _exportFormat == format;
     final colors = ThemeColors.of(context);
 
-    return InkWell(
-      onTap: () => setState(() => _exportFormat = format),
-      borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? colors.accentBlue.withValues(alpha: 0.15)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 16,
-              color: isSelected ? colors.accentBlue : colors.textSecondary,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: InkWell(
+        onTap: () => setState(() => _exportFormat = format),
+        borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? colors.accentBlue.withValues(alpha: 0.15)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 16,
                 color: isSelected ? colors.accentBlue : colors.textSecondary,
               ),
-            ),
-          ],
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  color: isSelected ? colors.accentBlue : colors.textSecondary,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -703,49 +1190,52 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
   Widget _buildMergeToggle(ThemeColors colors) {
     return FadeIn(
       delay: const Duration(milliseconds: 150),
-      child: GestureDetector(
-        onTap: () async {
-          final newValue = !_mergeDuplicates;
-          setState(() => _mergeDuplicates = newValue);
-          await _saveMergePreference(newValue);
-          await _loadPreview();
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: _mergeDuplicates
-                ? colors.accentGreen.withValues(alpha: 0.1)
-                : colors.surfaceBorder.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
-            border: Border.all(
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: () async {
+            final newValue = !_mergeDuplicates;
+            setState(() => _mergeDuplicates = newValue);
+            await _saveMergePreference(newValue);
+            await _loadPreview();
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
               color: _mergeDuplicates
-                  ? colors.accentGreen.withValues(alpha: 0.3)
-                  : colors.surfaceBorder.withValues(alpha: 0.5),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                _mergeDuplicates ? Icons.merge_type : Icons.format_list_bulleted,
-                size: 14,
+                  ? colors.accentGreen.withValues(alpha: 0.1)
+                  : colors.surfaceBorder.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(AppConstants.radiusMedium),
+              border: Border.all(
                 color: _mergeDuplicates
-                    ? colors.accentGreen
-                    : colors.textSecondary,
+                    ? colors.accentGreen.withValues(alpha: 0.3)
+                    : colors.surfaceBorder.withValues(alpha: 0.5),
               ),
-              const SizedBox(width: 6),
-              Text(
-                _mergeDuplicates ? 'Gabung' : 'Pisah',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _mergeDuplicates ? Icons.merge_type : Icons.format_list_bulleted,
+                  size: 14,
                   color: _mergeDuplicates
                       ? colors.accentGreen
                       : colors.textSecondary,
-                  letterSpacing: 0.1,
                 ),
-              ),
-            ],
+                const SizedBox(width: 6),
+                Text(
+                  _mergeDuplicates ? 'Gabung' : 'Pisah',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: _mergeDuplicates
+                        ? colors.accentGreen
+                        : colors.textSecondary,
+                    letterSpacing: 0.1,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

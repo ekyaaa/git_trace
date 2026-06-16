@@ -6,6 +6,7 @@ import '../models/commit_model.dart';
 import '../models/report_row_model.dart';
 import '../services/work_hours_storage.dart';
 import 'duplicate_commit_resolver.dart';
+import 'draft_kegiatan_storage.dart';
 
 class ExcelExporter {
   /// Exports monthly report to an Excel file.
@@ -53,12 +54,15 @@ class ExcelExporter {
             '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
         final workHours = await WorkHoursStorage.getWorkHours(dateKey);
 
+        final savedDraft = await DraftKegiatanStorage.getDraftKegiatan(dateKey);
+
         // Format kegiatan
-        final kegiatan = mergeDuplicates
+        final kegiatan = savedDraft ?? (mergeDuplicates
             ? DuplicateCommitResolver.buildMergedKegiatan(dateCommits)
-            : DuplicateCommitResolver.buildSeparateKegiatan(dateCommits);
+            : DuplicateCommitResolver.buildSeparateKegiatan(dateCommits));
 
         rows.add(ReportRowModel(
+          dateKey: dateKey,
           dayDate: dateFormatter.format(date),
           checkIn: workHours?.checkIn ?? '08.00',
           checkOut: workHours?.checkOut ?? '17.00',
@@ -95,6 +99,7 @@ class ExcelExporter {
       final dataStyle = CellStyle(
         fontFamily: getFontFamily(FontFamily.Calibri),
         fontSize: 11,
+        horizontalAlign: HorizontalAlign.Left,
         verticalAlign: VerticalAlign.Top,
         leftBorder: Border(borderStyle: BorderStyle.Thin),
         rightBorder: Border(borderStyle: BorderStyle.Thin),
@@ -105,6 +110,7 @@ class ExcelExporter {
       final dataStyleWrap = CellStyle(
         fontFamily: getFontFamily(FontFamily.Calibri),
         fontSize: 11,
+        horizontalAlign: HorizontalAlign.Left,
         verticalAlign: VerticalAlign.Top,
         textWrapping: TextWrapping.WrapText,
         leftBorder: Border(borderStyle: BorderStyle.Thin),
@@ -179,14 +185,16 @@ class ExcelExporter {
     }
   }
 
-  /// Returns the list of dates that have commits but no working hours set.
-  static Future<List<String>> getMissingWorkHoursDates(
+  /// Returns the list of dates in the selected month/year that have no commits/activities.
+  static Future<List<String>> getEmptyActivityDates(
     List<CommitModel> commits,
     int month,
     int year,
   ) async {
+    final filteredCommits = commits.where((c) => c.timestamp.month == month && c.timestamp.year == year).toList();
+    
     final commitsByDate = <DateTime, List<CommitModel>>{};
-    for (final commit in commits) {
+    for (final commit in filteredCommits) {
       final dateKey = commit.dateOnly;
       commitsByDate.putIfAbsent(dateKey, () => []).add(commit);
     }
@@ -199,13 +207,10 @@ class ExcelExporter {
       final isWeekend = date.weekday == DateTime.saturday || date.weekday == DateTime.sunday;
       final hasCommits = commitsByDate.containsKey(date);
 
-      if (!isWeekend || hasCommits) {
+      if (!isWeekend && !hasCommits) {
         final dateKey =
             '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-        final hours = await WorkHoursStorage.getWorkHours(dateKey);
-        if (hours == null) {
-          missing.add(dateKey);
-        }
+        missing.add(dateKey);
       }
     }
 
@@ -222,8 +227,10 @@ class ExcelExporter {
   }) async {
     final dateFormatter = DateFormat('EEEE, d MMM yyyy', 'id_ID');
 
+    final filteredCommits = commits.where((c) => c.timestamp.month == month && c.timestamp.year == year).toList();
+
     final commitsByDate = <DateTime, List<CommitModel>>{};
-    for (final commit in commits) {
+    for (final commit in filteredCommits) {
       final dateKey = commit.dateOnly;
       commitsByDate.putIfAbsent(dateKey, () => []).add(commit);
     }
@@ -250,11 +257,14 @@ class ExcelExporter {
           '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
       final workHours = await WorkHoursStorage.getWorkHours(dateKey);
 
-      final kegiatan = mergeDuplicates
+      final savedDraft = await DraftKegiatanStorage.getDraftKegiatan(dateKey);
+
+      final kegiatan = savedDraft ?? (mergeDuplicates
           ? DuplicateCommitResolver.buildMergedKegiatan(dateCommits)
-          : DuplicateCommitResolver.buildSeparateKegiatan(dateCommits);
+          : DuplicateCommitResolver.buildSeparateKegiatan(dateCommits));
 
       rows.add(ReportRowModel(
+        dateKey: dateKey,
         dayDate: dateFormatter.format(date),
         checkIn: workHours?.checkIn ?? '08.00',
         checkOut: workHours?.checkOut ?? '17.00',
