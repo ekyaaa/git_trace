@@ -42,6 +42,8 @@ class DocxTemplateEngine {
 
     rawXmlString = _replaceVariablesInRawXml(rawXmlString, variables);
 
+    rawXmlString = _keepSignatureTableTogether(rawXmlString);
+
     print('[DocxEngine] Final XML length: ${rawXmlString.length}');
 
     final remainingPlaceholders = RegExp(r'\{\{.*?\}\}').allMatches(rawXmlString).map((m) => m.group(0)).toSet();
@@ -224,11 +226,27 @@ class DocxTemplateEngine {
     return result;
   }
 
+  static List<XmlElement> _findDescendantElements(XmlNode node, String localName) {
+    return node.descendants
+        .whereType<XmlElement>()
+        .where((e) => e.name.local == localName)
+        .toList();
+  }
+
+  static XmlElement? _findChildElement(XmlElement element, String localName) {
+    for (final child in element.children) {
+      if (child is XmlElement && child.name.local == localName) {
+        return child;
+      }
+    }
+    return null;
+  }
+
   static XmlElement _buildRowFromTemplate(XmlElement templateRow, ReportRowModel rowData) {
     final newRow = templateRow.copy();
 
-    // Align paragraph for kegiatan to left
-    final cells = newRow.findAllElements('tc', namespace: _nsW).toList();
+    // Align paragraph for kegiatan to left using namespace-independent helper
+    final cells = _findDescendantElements(newRow, 'tc');
     for (final cell in cells) {
       final cellText = cell.descendants
           .whereType<XmlElement>()
@@ -236,15 +254,15 @@ class DocxTemplateEngine {
           .map((t) => t.innerText)
           .join('');
       if (cellText.contains('{{kegiatan}}')) {
-        final pElements = cell.findAllElements('p', namespace: _nsW).toList();
+        final pElements = _findDescendantElements(cell, 'p');
         for (final p in pElements) {
-          var pPr = p.getElement('pPr', namespace: _nsW);
+          var pPr = _findChildElement(p, 'pPr');
           if (pPr == null) {
             final pPrFragment = XmlDocument.parse('<w:pPr xmlns:w="$_nsW"/>');
             pPr = pPrFragment.rootElement.copy();
             p.children.insert(0, pPr);
           }
-          var jc = pPr.getElement('jc', namespace: _nsW);
+          var jc = _findChildElement(pPr, 'jc');
           if (jc != null) {
             jc.setAttribute('w:val', 'left');
           } else {
@@ -360,5 +378,130 @@ class DocxTemplateEngine {
         .where((e) => e.name.local == 't')
         .map((t) => t.innerText)
         .join('');
+  }
+
+  static void _applyKeepNextToParagraph(XmlElement p) {
+    var pPr = _findChildElement(p, 'pPr');
+    if (pPr == null) {
+      final pPrFragment = XmlDocument.parse('<w:pPr xmlns:w="$_nsW"/>');
+      pPr = pPrFragment.rootElement.copy();
+      p.children.insert(0, pPr);
+    }
+    final existingKeepNext = _findChildElement(pPr, 'keepNext');
+    if (existingKeepNext == null) {
+      final keepNextFragment = XmlDocument.parse('<w:keepNext xmlns:w="$_nsW"/>');
+      pPr.children.add(keepNextFragment.rootElement.copy());
+    }
+  }
+
+  static void _applyCantSplitToRow(XmlElement tr) {
+    var trPr = _findChildElement(tr, 'trPr');
+    if (trPr == null) {
+      final trPrFragment = XmlDocument.parse('<w:trPr xmlns:w="$_nsW"/>');
+      trPr = trPrFragment.rootElement.copy();
+      tr.children.insert(0, trPr);
+    }
+    final existingCantSplit = _findChildElement(trPr, 'cantSplit');
+    if (existingCantSplit != null) {
+      trPr.children.remove(existingCantSplit);
+    }
+    final cantSplitFragment = XmlDocument.parse('<w:cantSplit xmlns:w="$_nsW"/>');
+    trPr.children.add(cantSplitFragment.rootElement.copy());
+  }
+
+  static String _keepSignatureTableTogether(String rawXml) {
+    try {
+      final doc = XmlDocument.parse(rawXml);
+      
+      // Find body element
+      final body = doc.descendants
+          .whereType<XmlElement>()
+          .firstWhere((e) => e.name.local == 'body', orElse: () => throw Exception('body not found'));
+      final children = body.children.whereType<XmlElement>().toList();
+      
+      // Find activity table index (second table or table containing "kegiatan")
+      int activityTableIdx = -1;
+      for (int i = 0; i < children.length; i++) {
+        if (children[i].name.local == 'tbl') {
+          final text = children[i].descendants
+              .whereType<XmlElement>()
+              .where((e) => e.name.local == 't')
+              .map((t) => t.innerText)
+              .join(' ');
+          if (text.contains('kegiatan') || text.contains('Hari, Tanggal')) {
+            activityTableIdx = i;
+          }
+        }
+      }
+      
+      // Find start of signature section after activity table
+      int signatureStartIdx = -1;
+      if (activityTableIdx != -1) {
+        for (int i = activityTableIdx + 1; i < children.length; i++) {
+          final text = children[i].descendants
+              .whereType<XmlElement>()
+              .where((e) => e.name.local == 't')
+              .map((t) => t.innerText)
+              .join(' ');
+          if (text.contains('Mahasiswa') || text.contains('Mengetahui') || text.contains('Tanda Tangan')) {
+            signatureStartIdx = i;
+            break;
+          }
+        }
+      }
+      
+      if (signatureStartIdx != -1) {
+        print('[DocxEngine] Chaining signature section starting at element $signatureStartIdx');
+        for (int i = signatureStartIdx; i < children.length; i++) {
+          final element = children[i];
+          if (element.name.local == 'p') {
+            _applyKeepNextToParagraph(element);
+          } else if (element.name.local == 'tbl') {
+            // Apply cantSplit to rows
+            final rows = _findDescendantElements(element, 'tr');
+            for (final tr in rows) {
+              _applyCantSplitToRow(tr);
+            }
+            // Apply keepNext to cell paragraphs
+            final pElements = _findDescendantElements(element, 'p');
+            for (final p in pElements) {
+              _applyKeepNextToParagraph(p);
+            }
+          }
+        }
+      } else {
+        // Fallback: old behavior of targeting only the last signature table
+        print('[DocxEngine] Warning: no signature start paragraph found. Using fallback.');
+        final allTables = doc.findAllElements('tbl', namespace: _nsW).toList();
+        if (allTables.isNotEmpty) {
+          XmlElement? signatureTable;
+          for (final tbl in allTables) {
+            final text = tbl.descendants
+                .whereType<XmlElement>()
+                .where((e) => e.name.local == 't')
+                .map((t) => t.innerText)
+                .join(' ');
+            if (text.contains('Mahasiswa') || text.contains('Pembimbing')) {
+              signatureTable = tbl;
+            }
+          }
+          signatureTable ??= allTables.last;
+          
+          final rows = _findDescendantElements(signatureTable, 'tr');
+          for (final tr in rows) {
+            _applyCantSplitToRow(tr);
+          }
+          final pElements = _findDescendantElements(signatureTable, 'p');
+          for (final p in pElements) {
+            _applyKeepNextToParagraph(p);
+          }
+        }
+      }
+      
+      return doc.toXmlString(pretty: false);
+    } catch (e) {
+      print('[DocxEngine] Error keeping signature table together: $e');
+      return rawXml;
+    }
   }
 }

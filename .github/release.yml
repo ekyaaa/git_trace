@@ -1,0 +1,13 @@
+changelog:
+  categories:
+    - title: "🪟 Windows Changes"
+      labels:
+        - "Windows"
+        - "windows"
+    - title: "🐧 Linux Changes"
+      labels:
+        - "Linux"
+        - "linux"
+    - title: "Other Changes"
+      labels:
+        - "*"
