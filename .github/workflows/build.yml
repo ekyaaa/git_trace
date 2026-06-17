@@ -86,9 +86,39 @@ jobs:
           name: git-trace-windows-portable
           path: dist/git-trace-windows-portable.zip
 
+  build-macos:
+    name: Build macOS app
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build macOS app
+        run: flutter build macos --release
+
+      - name: Compress macOS build
+        run: |
+          mkdir -p dist
+          ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/git_trace.app dist/git-trace-macos.zip
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: git-trace-macos
+          path: dist/git-trace-macos.zip
+
   release:
     name: Create GitHub Release
-    needs: [build-linux, build-windows]
+    needs: [build-linux, build-windows, build-macos]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
@@ -110,4 +140,5 @@ jobs:
             dist/git-trace-linux.tar.gz
             dist/GitTrace_Installer.exe
             dist/git-trace-windows-portable.zip
+            dist/git-trace-macos.zip
           generate_release_notes: true
