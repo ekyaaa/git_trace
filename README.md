@@ -50,6 +50,8 @@ Format laporan yang dihasilkan telah disesuaikan dengan standar umum laporan mag
   * **Native PDF (A4 & 1-Inch Margins)**: Menghasilkan berkas PDF yang rapi, presisi, bersih, dan sesuai standar Google Docs.
   * **LibreOffice Fallback**: Otomatis menggunakan konversi headless LibreOffice jika pengguna menggunakan file template Word kustom.
 
+![Hasil Ekspor PDF](docs/result_pdf.png)
+
 ---
 
 ### 5. Penanganan Commit Duplikat (Duplicate Commit Resolver)
